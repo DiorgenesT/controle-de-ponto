@@ -21,7 +21,7 @@ app.use(
       const allowed = [
         'http://localhost:5173',
         'https://controle-ponto.pages.dev',
-        // Add your production domain here
+        'https://f0d4ea97.controle-ponto.pages.dev',
       ]
       return allowed.includes(origin ?? '') ? origin : null
     },

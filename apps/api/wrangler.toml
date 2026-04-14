@@ -2,18 +2,15 @@ name = "controle-ponto-api"
 main = "src/index.ts"
 compatibility_date = "2024-07-25"
 compatibility_flags = ["nodejs_compat"]
+account_id = "d2ba95e1ad712f466ec368a12aeaecd2"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "controle-ponto-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "f9f12ef5-2b8b-4279-9888-cb3c7185e9e0"
 
 [vars]
-ENVIRONMENT = "development"
-
-# Production secrets (set via wrangler secret):
-# JWT_SECRET
-# BCRYPT_ROUNDS
+ENVIRONMENT = "production"
 
 [dev]
 port = 8787
