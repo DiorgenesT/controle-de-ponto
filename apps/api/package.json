@@ -1,0 +1,26 @@
+{
+  "name": "@ponto/api",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy",
+    "db:migrate": "wrangler d1 execute controle-ponto-db --file=src/db/schema.sql",
+    "db:migrate:prod": "wrangler d1 execute controle-ponto-db --remote --file=src/db/schema.sql",
+    "db:seed": "wrangler d1 execute controle-ponto-db --file=src/db/seed.sql",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ponto/shared": "workspace:*",
+    "hono": "^4.4.7",
+    "zod": "^3.23.8",
+    "bcryptjs": "^2.4.3"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240725.0",
+    "@types/bcryptjs": "^2.4.6",
+    "typescript": "^5.4.5",
+    "wrangler": "^3.67.1"
+  }
+}
