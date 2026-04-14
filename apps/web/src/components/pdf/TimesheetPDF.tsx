@@ -149,7 +149,7 @@ export function TimesheetPDF({ report }: Props) {
               s.tableRow,
               ...(sun ? [s.tableRowSun] : isSat ? [s.tableRowSat] : day % 2 === 0 ? [s.tableRowAlt] : []),
             ]
-            const obs = entry?.dayType && entry.dayType !== 'normal'
+            const obs = entry?.dayType && entry.dayType !== 'worked'
               ? DAY_TYPE_LABELS[entry.dayType]
               : (entry?.notes ?? '')
 
