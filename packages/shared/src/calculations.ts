@@ -9,8 +9,8 @@ const SATURDAY_EXPECTED_MINUTES = 4 * MINUTES_PER_HOUR  // 4h
 
 /** Converts 'HH:MM' to total minutes from midnight */
 export function timeToMinutes(time: string): number {
-  const [hours, minutes] = time.split(':').map(Number)
-  return hours * MINUTES_PER_HOUR + minutes
+  const parts = time.split(':').map(Number)
+  return (parts[0] ?? 0) * MINUTES_PER_HOUR + (parts[1] ?? 0)
 }
 
 /** Converts total minutes to 'HH:MM' string */
@@ -26,7 +26,7 @@ export function minutesToTime(totalMinutes: number): string {
 export function getDayOfWeek(dateStr: string): string {
   const date = new Date(`${dateStr}T12:00:00`)
   const days = ['DOMINGO', 'SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA', 'SÁBADO']
-  return days[date.getDay()]
+  return days[date.getDay()] ?? 'DOMINGO'
 }
 
 /** Returns true if the ISO date falls on a Saturday */
@@ -57,7 +57,8 @@ export function calculateDay(
   entry: Pick<TimeEntry, 'clockIn' | 'lunchOut' | 'lunchReturn' | 'clockOut' | 'dayType' | 'entryDate'>,
   employee: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'worksSaturday'>
 ): DailyCalculation {
-  const NON_WORKING_TYPES = ['closed', 'holiday', 'vacation', 'absence'] as const
+  // Atestado não debita falta nem computa extra (equiparado a dia trabalhado para fins de banco)
+  const NON_WORKING_TYPES = ['closed', 'holiday', 'vacation', 'absence', 'medical'] as const
 
   if (NON_WORKING_TYPES.includes(entry.dayType as typeof NON_WORKING_TYPES[number])) {
     return { workedMinutes: 0, expectedMinutes: 0, extraMinutes: 0, missingMinutes: 0, isComplete: false }

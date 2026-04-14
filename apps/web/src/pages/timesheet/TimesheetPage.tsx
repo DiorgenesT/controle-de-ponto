@@ -15,11 +15,12 @@ import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 
 const DAY_TYPE_LABELS: Record<DayType, string> = {
-  normal: 'Normal',
-  closed: 'Fechado',
+  worked:  'Dia Trabalhado',
+  closed:  'Empresa Fechada',
   holiday: 'Feriado',
   absence: 'Falta',
-  vacation: 'Férias',
+  vacation:'Férias',
+  medical: 'Atestado',
 }
 
 interface DayRow {
@@ -90,7 +91,7 @@ export function TimesheetPage() {
         lunchOut: row.entry?.lunchOut ?? '',
         lunchReturn: row.entry?.lunchReturn ?? '',
         clockOut: row.entry?.clockOut ?? '',
-        dayType: row.entry?.dayType ?? 'normal',
+        dayType: row.entry?.dayType ?? 'worked',
         notes: row.entry?.notes ?? '',
       },
     }))

@@ -47,7 +47,7 @@ export const updateEmployeeSchema = createEmployeeSchema.partial()
 
 // ─── Time Entry ───────────────────────────────────────────────────────────────
 
-export const dayTypeSchema = z.enum(['normal', 'closed', 'holiday', 'absence', 'vacation'])
+export const dayTypeSchema = z.enum(['worked', 'closed', 'holiday', 'absence', 'vacation', 'medical'])
 
 export const upsertTimeEntrySchema = z
   .object({
@@ -57,13 +57,13 @@ export const upsertTimeEntrySchema = z
     lunchOut: timeHHMM.nullable().optional(),
     lunchReturn: timeHHMM.nullable().optional(),
     clockOut: timeHHMM.nullable().optional(),
-    dayType: dayTypeSchema.default('normal'),
+    dayType: dayTypeSchema.default('worked'),
     notes: z.string().max(500).nullable().optional(),
   })
   .refine(
     (data) => {
-      // For non-normal days, times are optional
-      if (data.dayType !== 'normal') return true
+      // For non-worked days, times are optional
+      if (data.dayType !== 'worked') return true
       // If clock_in is set, clock_out must be set too
       if (data.clockIn && !data.clockOut) return false
       return true

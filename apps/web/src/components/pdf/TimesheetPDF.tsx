@@ -9,11 +9,12 @@ const MONTH_NAMES = [
 ]
 
 const DAY_TYPE_LABELS: Record<string, string> = {
-  normal: '',
-  closed: 'FECHADO',
+  worked:  '',
+  closed:  'EMPRESA FECHADA',
   holiday: 'FERIADO',
   absence: 'FALTA',
-  vacation: 'FÉRIAS',
+  vacation:'FÉRIAS',
+  medical: 'ATESTADO',
 }
 
 const s = StyleSheet.create({
