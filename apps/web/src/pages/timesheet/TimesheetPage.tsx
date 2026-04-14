@@ -271,7 +271,28 @@ export function TimesheetPage() {
                               <select
                                 className="h-7 rounded border border-input bg-background px-1 text-xs"
                                 value={fd.dayType}
-                                onChange={(e) => setFormData((prev) => ({ ...prev, [row.date]: { ...prev[row.date]!, dayType: e.target.value as DayType } }))}
+                                onChange={(e) => {
+                                  const newType = e.target.value as DayType
+                                  setFormData((prev) => {
+                                    const current = prev[row.date]!
+                                    // Atestado: preenche horários padrão automaticamente
+                                    if (newType === 'medical' && selectedEmployee) {
+                                      const isSat = row.dayOfWeek === 'SÁBADO'
+                                      return {
+                                        ...prev,
+                                        [row.date]: {
+                                          ...current,
+                                          dayType: newType,
+                                          clockIn: isSat ? (selectedEmployee.saturdayStart ?? '') : selectedEmployee.weekdayStart,
+                                          lunchOut: isSat ? '' : '12:00',
+                                          lunchReturn: isSat ? '' : '13:00',
+                                          clockOut: isSat ? (selectedEmployee.saturdayEnd ?? '') : selectedEmployee.weekdayEnd,
+                                        },
+                                      }
+                                    }
+                                    return { ...prev, [row.date]: { ...current, dayType: newType } }
+                                  })
+                                }}
                               >
                                 {Object.entries(DAY_TYPE_LABELS).map(([v, l]) => (
                                   <option key={v} value={v}>{l}</option>

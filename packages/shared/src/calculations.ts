@@ -45,77 +45,81 @@ export function isSunday(dateStr: string): boolean {
  * Calculates worked minutes, extra and missing for a single day.
  *
  * Business rules:
- * 1. worked = (clockOut - clockIn) - lunchBreak
- * 2. lunchBreak = lunchReturn - lunchOut  (0 if not set)
- * 3. diff = worked - expected
- * 4. |diff| <= tolerance → extra=0, missing=0
- * 5. diff > tolerance → extra = diff
- * 6. diff < -tolerance → missing = |diff|
- * 7. closed/holiday/vacation/absence → no extra, no missing (workedMinutes=0)
+ *   closed / vacation  → 0 for everything (company-side, no debit)
+ *   absence            → missing = expected daily hours (employee no-show)
+ *   medical            → worked = expected (certificate covers the day; no debit, no credit)
+ *   holiday            → expected = 0; any hours worked count entirely as extra
+ *   worked             → normal calculation with ±tolerance window
+ *   sunday             → 0 for everything (rest day)
  */
 export function calculateDay(
   entry: Pick<TimeEntry, 'clockIn' | 'lunchOut' | 'lunchReturn' | 'clockOut' | 'dayType' | 'entryDate'>,
   employee: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'worksSaturday'>
 ): DailyCalculation {
-  // Atestado não debita falta nem computa extra (equiparado a dia trabalhado para fins de banco)
-  const NON_WORKING_TYPES = ['closed', 'holiday', 'vacation', 'absence', 'medical'] as const
-
-  if (NON_WORKING_TYPES.includes(entry.dayType as typeof NON_WORKING_TYPES[number])) {
-    return { workedMinutes: 0, expectedMinutes: 0, extraMinutes: 0, missingMinutes: 0, isComplete: false }
-  }
-
   if (isSunday(entry.entryDate)) {
     return { workedMinutes: 0, expectedMinutes: 0, extraMinutes: 0, missingMinutes: 0, isComplete: false }
   }
 
-  const saturdayDay = isSaturday(entry.entryDate)
-  const expectedMinutes = saturdayDay
+  const isSat = isSaturday(entry.entryDate)
+  const expectedMinutes = isSat
     ? (employee.worksSaturday ? SATURDAY_EXPECTED_MINUTES : 0)
     : employee.dailyHoursExpected * MINUTES_PER_HOUR
 
-  // Not enough data to compute
-  if (!entry.clockIn || !entry.clockOut) {
-    // Only compute missing if this is a working day with no entries
-    const missing = expectedMinutes > 0 ? expectedMinutes : 0
-    return {
-      workedMinutes: 0,
-      expectedMinutes,
-      extraMinutes: 0,
-      missingMinutes: missing,
-      isComplete: false,
+  // Company closed or on vacation — neutral, no debit or credit
+  if (entry.dayType === 'closed' || entry.dayType === 'vacation') {
+    return { workedMinutes: 0, expectedMinutes: 0, extraMinutes: 0, missingMinutes: 0, isComplete: false }
+  }
+
+  // Absence — full expected hours are debited as missing
+  if (entry.dayType === 'absence') {
+    return { workedMinutes: 0, expectedMinutes, extraMinutes: 0, missingMinutes: expectedMinutes, isComplete: false }
+  }
+
+  // Medical certificate — justified absence; treated as full day worked for the hour bank
+  if (entry.dayType === 'medical') {
+    return { workedMinutes: expectedMinutes, expectedMinutes, extraMinutes: 0, missingMinutes: 0, isComplete: true }
+  }
+
+  // Holiday — not required to work (expected = 0); every minute worked is extra
+  if (entry.dayType === 'holiday') {
+    if (!entry.clockIn || !entry.clockOut) {
+      return { workedMinutes: 0, expectedMinutes: 0, extraMinutes: 0, missingMinutes: 0, isComplete: false }
     }
+    const worked = computeWorked(entry.clockIn, entry.clockOut, entry.lunchOut, entry.lunchReturn)
+    return { workedMinutes: worked, expectedMinutes: 0, extraMinutes: worked, missingMinutes: 0, isComplete: true }
   }
 
-  const clockInMins = timeToMinutes(entry.clockIn)
-  const clockOutMins = timeToMinutes(entry.clockOut)
-
-  let lunchBreakMins = 0
-  if (entry.lunchOut && entry.lunchReturn) {
-    lunchBreakMins = Math.max(0, timeToMinutes(entry.lunchReturn) - timeToMinutes(entry.lunchOut))
+  // Worked — normal calculation with tolerance window
+  if (!entry.clockIn || !entry.clockOut) {
+    return { workedMinutes: 0, expectedMinutes, extraMinutes: 0, missingMinutes: expectedMinutes, isComplete: false }
   }
 
-  const workedMinutes = Math.max(0, clockOutMins - clockInMins - lunchBreakMins)
+  const workedMinutes = computeWorked(entry.clockIn, entry.clockOut, entry.lunchOut, entry.lunchReturn)
   const diff = workedMinutes - expectedMinutes
-  const tolerance = employee.toleranceMinutes
+  const { toleranceMinutes } = employee
 
   let extraMinutes = 0
   let missingMinutes = 0
-
-  if (Math.abs(diff) > tolerance) {
-    if (diff > 0) {
-      extraMinutes = diff
-    } else {
-      missingMinutes = Math.abs(diff)
-    }
+  if (Math.abs(diff) > toleranceMinutes) {
+    if (diff > 0) extraMinutes = diff
+    else missingMinutes = Math.abs(diff)
   }
 
-  return {
-    workedMinutes,
-    expectedMinutes,
-    extraMinutes,
-    missingMinutes,
-    isComplete: true,
-  }
+  return { workedMinutes, expectedMinutes, extraMinutes, missingMinutes, isComplete: true }
+}
+
+function computeWorked(
+  clockIn: string,
+  clockOut: string,
+  lunchOut: string | null | undefined,
+  lunchReturn: string | null | undefined
+): number {
+  const totalMins = timeToMinutes(clockOut) - timeToMinutes(clockIn)
+  const lunchMins =
+    lunchOut && lunchReturn
+      ? Math.max(0, timeToMinutes(lunchReturn) - timeToMinutes(lunchOut))
+      : 0
+  return Math.max(0, totalMins - lunchMins)
 }
 
 // ─── Monthly Summary ──────────────────────────────────────────────────────────
