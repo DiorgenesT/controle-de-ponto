@@ -14,6 +14,7 @@ function rowToEmployee(row: Record<string, unknown>) {
     companyId: row.company_id,
     name: row.name,
     role: row.role,
+    cpf: row.cpf ?? null,
     admissionDate: row.admission_date,
     weekdayStart: row.weekday_start,
     weekdayEnd: row.weekday_end,
@@ -73,12 +74,12 @@ employees.post('/', requireRole('admin', 'manager'), async (c) => {
   await c.env.DB
     .prepare(
       `INSERT INTO employees
-        (id, company_id, name, role, admission_date, weekday_start, weekday_end,
+        (id, company_id, name, role, cpf, admission_date, weekday_start, weekday_end,
          saturday_start, saturday_end, works_saturday, tolerance_minutes, daily_hours_expected)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
-      id, companyId, d.name, d.role, d.admissionDate,
+      id, companyId, d.name, d.role, d.cpf ?? null, d.admissionDate,
       d.weekdayStart, d.weekdayEnd,
       d.saturdayStart ?? null, d.saturdayEnd ?? null,
       d.worksSaturday ? 1 : 0,
@@ -119,6 +120,7 @@ employees.put('/:id', requireRole('admin', 'manager'), async (c) => {
 
   if (d.name !== undefined) { fields.push('name = ?'); values.push(d.name) }
   if (d.role !== undefined) { fields.push('role = ?'); values.push(d.role) }
+  if (d.cpf !== undefined) { fields.push('cpf = ?'); values.push(d.cpf ?? null) }
   if (d.admissionDate !== undefined) { fields.push('admission_date = ?'); values.push(d.admissionDate) }
   if (d.weekdayStart !== undefined) { fields.push('weekday_start = ?'); values.push(d.weekdayStart) }
   if (d.weekdayEnd !== undefined) { fields.push('weekday_end = ?'); values.push(d.weekdayEnd) }

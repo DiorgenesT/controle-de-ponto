@@ -30,9 +30,30 @@ export const updateCompanySchema = z.object({
 
 // ─── Employee ─────────────────────────────────────────────────────────────────
 
+const cpfSchema = z
+  .string()
+  .regex(/^\d{3}\.\d{3}\.\d{3}-\d{2}$/, 'CPF inválido. Formato: 000.000.000-00')
+  .refine((cpf) => {
+    const d = cpf.replace(/\D/g, '')
+    if (/^(\d)\1+$/.test(d)) return false
+    let s = 0
+    for (let i = 0; i < 9; i++) s += +d[i] * (10 - i)
+    let r = (s * 10) % 11
+    if (r === 10 || r === 11) r = 0
+    if (r !== +d[9]) return false
+    s = 0
+    for (let i = 0; i < 10; i++) s += +d[i] * (11 - i)
+    r = (s * 10) % 11
+    if (r === 10 || r === 11) r = 0
+    return r === +d[10]
+  }, 'CPF inválido')
+  .nullable()
+  .optional()
+
 export const createEmployeeSchema = z.object({
   name: z.string().min(2, 'Nome deve ter no mínimo 2 caracteres').max(120),
   role: z.string().min(2, 'Função deve ter no mínimo 2 caracteres').max(80),
+  cpf: cpfSchema,
   admissionDate: isoDate,
   weekdayStart: timeHHMM.default('08:30'),
   weekdayEnd: timeHHMM.default('18:00'),

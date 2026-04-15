@@ -35,6 +35,7 @@ export function EmployeeFormPage() {
     handleSubmit,
     reset,
     watch,
+    setValue,
     formState: { errors },
   } = useForm<EmployeeForm>({
     resolver: zodResolver(createEmployeeSchema),
@@ -54,6 +55,7 @@ export function EmployeeFormPage() {
       reset({
         name: emp.name,
         role: emp.role,
+        cpf: emp.cpf ?? undefined,
         admissionDate: emp.admissionDate,
         weekdayStart: emp.weekdayStart,
         weekdayEnd: emp.weekdayEnd,
@@ -126,6 +128,25 @@ export function EmployeeFormPage() {
                 <Label htmlFor="role">Função *</Label>
                 <Input id="role" placeholder="Ex: Auxiliar Administrativo" {...register('role')} />
                 {errors.role && <p className="text-xs text-destructive">{errors.role.message}</p>}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input
+                  id="cpf"
+                  placeholder="000.000.000-00"
+                  maxLength={14}
+                  {...register('cpf')}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, '').slice(0, 11)
+                    let formatted = digits
+                    if (digits.length > 9) formatted = `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6,9)}-${digits.slice(9)}`
+                    else if (digits.length > 6) formatted = `${digits.slice(0,3)}.${digits.slice(3,6)}.${digits.slice(6)}`
+                    else if (digits.length > 3) formatted = `${digits.slice(0,3)}.${digits.slice(3)}`
+                    setValue('cpf', formatted || undefined, { shouldValidate: true })
+                  }}
+                />
+                {errors.cpf && <p className="text-xs text-destructive">{errors.cpf.message}</p>}
               </div>
 
               <div className="space-y-1.5">

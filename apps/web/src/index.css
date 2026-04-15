@@ -1,31 +1,31 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: hsl(0 0% 100%);
-  --color-foreground: hsl(222.2 84% 4.9%);
+  --color-background: hsl(220 20% 97%);
+  --color-foreground: hsl(224 71% 10%);
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(222.2 84% 4.9%);
+  --color-card-foreground: hsl(224 71% 10%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(222.2 84% 4.9%);
-  --color-primary: hsl(221.2 83.2% 53.3%);
+  --color-popover-foreground: hsl(224 71% 10%);
+  --color-primary: hsl(226 71% 40%);
   --color-primary-foreground: hsl(210 40% 98%);
-  --color-secondary: hsl(210 40% 96.1%);
-  --color-secondary-foreground: hsl(222.2 47.4% 11.2%);
-  --color-muted: hsl(210 40% 96.1%);
-  --color-muted-foreground: hsl(215.4 16.3% 46.9%);
-  --color-accent: hsl(210 40% 96.1%);
-  --color-accent-foreground: hsl(222.2 47.4% 11.2%);
-  --color-destructive: hsl(0 84.2% 60.2%);
+  --color-secondary: hsl(220 14% 94%);
+  --color-secondary-foreground: hsl(224 50% 20%);
+  --color-muted: hsl(220 14% 94%);
+  --color-muted-foreground: hsl(220 9% 52%);
+  --color-accent: hsl(220 14% 92%);
+  --color-accent-foreground: hsl(224 50% 20%);
+  --color-destructive: hsl(0 84% 58%);
   --color-destructive-foreground: hsl(210 40% 98%);
-  --color-border: hsl(214.3 31.8% 91.4%);
-  --color-input: hsl(214.3 31.8% 91.4%);
-  --color-ring: hsl(221.2 83.2% 53.3%);
-  --color-success: hsl(142.1 76.2% 36.3%);
+  --color-border: hsl(220 13% 89%);
+  --color-input: hsl(220 13% 89%);
+  --color-ring: hsl(226 71% 40%);
+  --color-success: hsl(142 71% 32%);
   --color-success-foreground: hsl(0 0% 100%);
-  --color-warning: hsl(38 92% 50%);
+  --color-warning: hsl(38 92% 48%);
   --color-warning-foreground: hsl(0 0% 0%);
 
-  --radius: 0.5rem;
+  --radius: 0.625rem;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
@@ -47,5 +47,14 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer utilities {
+  .card-shadow {
+    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  }
+  .card-shadow-md {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
   }
 }

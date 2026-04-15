@@ -91,6 +91,7 @@ reports.get('/monthly', async (c) => {
         companyId: employeeRow.company_id,
         name: employeeRow.name,
         role: employeeRow.role,
+        cpf: employeeRow.cpf ?? null,
         admissionDate: employeeRow.admission_date,
         weekdayStart: employeeRow.weekday_start,
         weekdayEnd: employeeRow.weekday_end,
@@ -139,6 +140,61 @@ reports.get('/hourbank', async (c) => {
     .all()
 
   return c.json({ data: rows.results })
+})
+
+// GET /reports/dashboard?year=&month=
+reports.get('/dashboard', async (c) => {
+  const year  = parseInt(c.req.query('year')  ?? String(new Date().getFullYear()))
+  const month = parseInt(c.req.query('month') ?? String(new Date().getMonth() + 1))
+  const { companyId } = c.get('user')
+
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`
+  const endDate   = `${year}-${String(month).padStart(2, '0')}-31`
+
+  const [employeesResult, entriesResult] = await Promise.all([
+    c.env.DB
+      .prepare('SELECT id, name, role, cpf FROM employees WHERE company_id = ? AND active = 1 ORDER BY name ASC')
+      .bind(companyId)
+      .all(),
+    c.env.DB
+      .prepare(
+        `SELECT te.employee_id, te.day_type, te.worked_minutes, te.extra_minutes, te.missing_minutes
+         FROM time_entries te
+         JOIN employees e ON e.id = te.employee_id
+         WHERE e.company_id = ? AND te.entry_date >= ? AND te.entry_date <= ?`
+      )
+      .bind(companyId, startDate, endDate)
+      .all(),
+  ])
+
+  type EmpRow = { id: string; name: string; role: string; cpf: string | null }
+  type EntryRow = { employee_id: string; day_type: string; worked_minutes: number | null; extra_minutes: number | null; missing_minutes: number | null }
+
+  const employees = employeesResult.results as EmpRow[]
+  const entries   = entriesResult.results as EntryRow[]
+
+  const stats: Record<string, { workedMinutes: number; extraMinutes: number; missingMinutes: number; absences: number }> = {}
+  for (const emp of employees) stats[emp.id] = { workedMinutes: 0, extraMinutes: 0, missingMinutes: 0, absences: 0 }
+
+  for (const e of entries) {
+    if (!stats[e.employee_id]) continue
+    stats[e.employee_id].workedMinutes  += e.worked_minutes  ?? 0
+    stats[e.employee_id].extraMinutes   += e.extra_minutes   ?? 0
+    stats[e.employee_id].missingMinutes += e.missing_minutes ?? 0
+    if (e.day_type === 'absence') stats[e.employee_id].absences++
+  }
+
+  return c.json({
+    data: {
+      year, month,
+      totalEmployees:     employees.length,
+      totalWorkedMinutes: Object.values(stats).reduce((s, v) => s + v.workedMinutes,  0),
+      totalExtraMinutes:  Object.values(stats).reduce((s, v) => s + v.extraMinutes,   0),
+      totalMissingMinutes:Object.values(stats).reduce((s, v) => s + v.missingMinutes, 0),
+      totalAbsences:      Object.values(stats).reduce((s, v) => s + v.absences,       0),
+      employees: employees.map(emp => ({ ...emp, ...stats[emp.id] })),
+    },
+  })
 })
 
 export default reports

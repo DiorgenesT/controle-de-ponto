@@ -150,6 +150,16 @@ export function TimesheetPDF({ report }: Props) {
             </View>
           </View>
         </View>
+        {employee.cpf && (
+          <View style={[s.infoRow, { marginBottom: 3 }]}>
+            <View style={s.infoBlock}>
+              <View style={s.infoRow}>
+                <Text style={s.infoLabel}>CPF:</Text>
+                <Text style={s.infoValue}>{employee.cpf}</Text>
+              </View>
+            </View>
+          </View>
+        )}
         <View style={s.infoRow}>
           <View style={s.infoBlock}>
             <View style={s.infoRow}>

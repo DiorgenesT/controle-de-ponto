@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS employees (
   company_id            TEXT NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
   name                  TEXT NOT NULL,
   role                  TEXT NOT NULL,
+  cpf                   TEXT,
   admission_date        TEXT NOT NULL,
   weekday_start         TEXT NOT NULL DEFAULT '08:30',
   weekday_end           TEXT NOT NULL DEFAULT '18:00',

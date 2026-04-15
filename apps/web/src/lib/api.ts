@@ -85,4 +85,6 @@ export const reportsApi = {
     request<{ data: unknown }>(`/reports/monthly?employeeId=${employeeId}&year=${year}&month=${month}`),
   hourBank: (employeeId: string) =>
     request<{ data: unknown[] }>(`/reports/hourbank?employeeId=${employeeId}`),
+  dashboard: (year: number, month: number) =>
+    request<{ data: unknown }>(`/reports/dashboard?year=${year}&month=${month}`),
 }

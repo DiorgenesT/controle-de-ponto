@@ -26,6 +26,7 @@ export interface Employee {
   companyId: string
   name: string
   role: string
+  cpf: string | null
   admissionDate: string         // ISO date 'YYYY-MM-DD'
   weekdayStart: string          // 'HH:MM'
   weekdayEnd: string            // 'HH:MM'
