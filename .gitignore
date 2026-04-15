@@ -9,3 +9,18 @@ CLAUDE.md
 .DS_Store
 coverage
 .turbo
+
+# Documentos internos / planilhas originais
+doc/
+
+# Windows Zone.Identifier (WSL artifact)
+*.Identifier
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Build artifacts
+*.tsbuildinfo
+apps/web/dist/
