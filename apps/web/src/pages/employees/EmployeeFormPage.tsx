@@ -35,7 +35,7 @@ export function EmployeeFormPage() {
     handleSubmit,
     reset,
     watch,
-    formState: { errors, isSubmitting },
+    formState: { errors },
   } = useForm<EmployeeForm>({
     resolver: zodResolver(createEmployeeSchema),
     defaultValues: {
@@ -87,6 +87,7 @@ export function EmployeeFormPage() {
   })
 
   const worksSaturday = watch('worksSaturday')
+  const isPending = createMutation.isPending || updateMutation.isPending
 
   async function onSubmit(data: EmployeeForm) {
     if (isEditing) {
@@ -194,8 +195,8 @@ export function EmployeeFormPage() {
           <Button type="button" variant="outline" onClick={() => navigate('/employees')}>
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Cadastrar Funcionário'}
+          <Button type="submit" disabled={isPending}>
+            {isPending ? 'Salvando...' : isEditing ? 'Salvar Alterações' : 'Cadastrar Funcionário'}
           </Button>
         </div>
       </form>

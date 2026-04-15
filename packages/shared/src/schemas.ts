@@ -51,7 +51,7 @@ export const dayTypeSchema = z.enum(['worked', 'closed', 'holiday', 'absence', '
 
 export const upsertTimeEntrySchema = z
   .object({
-    employeeId: z.string().uuid(),
+    employeeId: z.string().min(1).max(40),
     entryDate: isoDate,
     clockIn: timeHHMM.nullable().optional(),
     lunchOut: timeHHMM.nullable().optional(),

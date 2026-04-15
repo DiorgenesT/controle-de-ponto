@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/auth'
 import { Button } from '@/components/ui/button'
+import { Toaster } from '@/components/ui/toaster'
 import {
   Clock,
   Users,
@@ -122,6 +123,7 @@ export function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <Toaster />
     </div>
   )
 }
