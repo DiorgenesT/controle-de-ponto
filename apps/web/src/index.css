@@ -1,31 +1,32 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
 @theme {
-  --color-background: hsl(220 20% 97%);
-  --color-foreground: hsl(224 71% 10%);
+  --color-background: hsl(224 20% 95%);
+  --color-foreground: hsl(224 40% 8%);
   --color-card: hsl(0 0% 100%);
-  --color-card-foreground: hsl(224 71% 10%);
+  --color-card-foreground: hsl(224 40% 8%);
   --color-popover: hsl(0 0% 100%);
-  --color-popover-foreground: hsl(224 71% 10%);
-  --color-primary: hsl(226 71% 40%);
-  --color-primary-foreground: hsl(210 40% 98%);
-  --color-secondary: hsl(220 14% 94%);
-  --color-secondary-foreground: hsl(224 50% 20%);
-  --color-muted: hsl(220 14% 94%);
-  --color-muted-foreground: hsl(220 9% 52%);
-  --color-accent: hsl(220 14% 92%);
-  --color-accent-foreground: hsl(224 50% 20%);
-  --color-destructive: hsl(0 84% 58%);
-  --color-destructive-foreground: hsl(210 40% 98%);
-  --color-border: hsl(220 13% 89%);
-  --color-input: hsl(220 13% 89%);
-  --color-ring: hsl(226 71% 40%);
-  --color-success: hsl(142 71% 32%);
+  --color-popover-foreground: hsl(224 40% 8%);
+  --color-primary: hsl(230 80% 48%);
+  --color-primary-foreground: hsl(0 0% 100%);
+  --color-secondary: hsl(220 16% 93%);
+  --color-secondary-foreground: hsl(224 40% 14%);
+  --color-muted: hsl(220 16% 93%);
+  --color-muted-foreground: hsl(220 10% 54%);
+  --color-accent: hsl(220 16% 91%);
+  --color-accent-foreground: hsl(224 40% 14%);
+  --color-destructive: hsl(0 86% 56%);
+  --color-destructive-foreground: hsl(0 0% 100%);
+  --color-border: hsl(220 16% 88%);
+  --color-input: hsl(220 16% 88%);
+  --color-ring: hsl(230 80% 48%);
+  --color-success: hsl(142 72% 34%);
   --color-success-foreground: hsl(0 0% 100%);
-  --color-warning: hsl(38 92% 48%);
+  --color-warning: hsl(38 94% 46%);
   --color-warning-foreground: hsl(0 0% 0%);
 
-  --radius: 0.625rem;
+  --radius: 0.75rem;
   --font-sans: 'Inter', system-ui, sans-serif;
 }
 
@@ -51,10 +52,51 @@
 }
 
 @layer utilities {
-  .card-shadow {
-    box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06), 0 1px 2px -1px rgb(0 0 0 / 0.06);
+  /* Premium shadow system */
+  .shadow-card {
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.04),
+      0 2px 4px rgba(0, 0, 0, 0.04),
+      0 8px 24px rgba(0, 0, 0, 0.06);
   }
-  .card-shadow-md {
-    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+  .shadow-card-hover {
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.06),
+      0 4px 8px rgba(0, 0, 0, 0.06),
+      0 16px 40px rgba(0, 0, 0, 0.10);
   }
+  .shadow-kpi {
+    box-shadow:
+      0 0 0 1px rgba(0, 0, 0, 0.03),
+      0 1px 2px rgba(0, 0, 0, 0.04),
+      0 4px 16px rgba(0, 0, 0, 0.06);
+  }
+
+  /* Avatar gradients by letter */
+  .avatar-a { background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); }
+  .avatar-b { background: linear-gradient(135deg, #3b82f6 0%, #06b6d4 100%); }
+  .avatar-c { background: linear-gradient(135deg, #10b981 0%, #3b82f6 100%); }
+  .avatar-d { background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%); }
+  .avatar-e { background: linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%); }
+  .avatar-f { background: linear-gradient(135deg, #06b6d4 0%, #6366f1 100%); }
+  .avatar-g { background: linear-gradient(135deg, #10b981 0%, #6366f1 100%); }
+  .avatar-h { background: linear-gradient(135deg, #f97316 0%, #f59e0b 100%); }
+  .avatar-i { background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%); }
+  .avatar-j { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); }
+  .avatar-k { background: linear-gradient(135deg, #10b981 0%, #f59e0b 100%); }
+  .avatar-l { background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%); }
+  .avatar-m { background: linear-gradient(135deg, #ef4444 0%, #f97316 100%); }
+  .avatar-n { background: linear-gradient(135deg, #06b6d4 0%, #10b981 100%); }
+  .avatar-o { background: linear-gradient(135deg, #8b5cf6 0%, #3b82f6 100%); }
+  .avatar-p { background: linear-gradient(135deg, #f59e0b 0%, #10b981 100%); }
+  .avatar-q { background: linear-gradient(135deg, #ec4899 0%, #ef4444 100%); }
+  .avatar-r { background: linear-gradient(135deg, #3b82f6 0%, #10b981 100%); }
+  .avatar-s { background: linear-gradient(135deg, #6366f1 0%, #ec4899 100%); }
+  .avatar-t { background: linear-gradient(135deg, #f97316 0%, #ec4899 100%); }
+  .avatar-u { background: linear-gradient(135deg, #10b981 0%, #06b6d4 100%); }
+  .avatar-v { background: linear-gradient(135deg, #8b5cf6 0%, #f59e0b 100%); }
+  .avatar-w { background: linear-gradient(135deg, #3b82f6 0%, #f97316 100%); }
+  .avatar-x { background: linear-gradient(135deg, #ef4444 0%, #8b5cf6 100%); }
+  .avatar-y { background: linear-gradient(135deg, #06b6d4 0%, #ec4899 100%); }
+  .avatar-z { background: linear-gradient(135deg, #f59e0b 0%, #6366f1 100%); }
 }

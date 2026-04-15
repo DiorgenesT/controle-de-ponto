@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { reportsApi } from '@/lib/api'
-import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
@@ -19,122 +18,163 @@ const MONTH_NAMES = [
 ]
 
 interface EmpStat {
-  id: string
-  name: string
-  role: string
-  workedDays: number
-  workedMinutes: number
-  extraMinutes: number
-  missingMinutes: number
-  absences: number
-  medicalDays: number
-  vacationDays: number
-  monthBalance: number
-  accumulatedBalance: number
+  id: string; name: string; role: string
+  workedDays: number; workedMinutes: number
+  extraMinutes: number; missingMinutes: number
+  absences: number; medicalDays: number; vacationDays: number
+  monthBalance: number; accumulatedBalance: number
 }
 
-interface DashData {
-  totalEmployees: number
-  employees: EmpStat[]
+interface DashData { totalEmployees: number; employees: EmpStat[] }
+
+function avatarClass(name: string) {
+  return `avatar-${(name[0] ?? 'a').toLowerCase()}`
+}
+
+function initials(name: string) {
+  return name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+}
+
+function statusOf(e: EmpStat): 'ok' | 'warning' | 'danger' {
+  if (e.absences > 0 || e.monthBalance < -30) return 'danger'
+  if (e.medicalDays > 0 || e.missingMinutes > 0) return 'warning'
+  return 'ok'
 }
 
 // ─── KPI Card ────────────────────────────────────────────────────────────────
 
-function KPI({ label, value, sub, icon: Icon, iconClass, bgClass }: {
-  label: string; value: string | number; sub?: string
-  icon: React.ElementType; iconClass: string; bgClass: string
+function KPI({ label, value, icon: Icon, gradient, textColor }: {
+  label: string; value: string | number
+  icon: React.ElementType; gradient: string; textColor: string
 }) {
   return (
-    <Card className="card-shadow">
-      <CardContent className="p-4 flex items-center gap-4">
-        <div className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', bgClass)}>
-          <Icon className={cn('h-5 w-5', iconClass)} />
-        </div>
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide truncate">{label}</p>
-          <p className="text-xl font-bold leading-tight">{value}</p>
-          {sub && <p className="text-xs text-muted-foreground truncate">{sub}</p>}
-        </div>
-      </CardContent>
-    </Card>
+    <div className="bg-card rounded-2xl p-5 shadow-kpi flex items-center gap-4">
+      <div className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-xl', gradient)}>
+        <Icon className="h-5 w-5 text-white" />
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest">{label}</p>
+        <p className={cn('text-2xl font-bold mt-0.5 leading-none', textColor)}>{value}</p>
+      </div>
+    </div>
   )
 }
 
-// ─── Status indicator ─────────────────────────────────────────────────────────
+// ─── Skeleton Card ────────────────────────────────────────────────────────────
 
-function statusOf(emp: EmpStat): 'ok' | 'warning' | 'danger' {
-  if (emp.absences > 0 || emp.monthBalance < -30) return 'danger'
-  if (emp.medicalDays > 0 || emp.missingMinutes > 0) return 'warning'
-  return 'ok'
-}
-
-const STATUS_CONFIG = {
-  ok:      { dot: 'bg-emerald-400', label: 'Em dia' },
-  warning: { dot: 'bg-amber-400',   label: 'Atenção' },
-  danger:  { dot: 'bg-red-500',     label: 'Pendência' },
+function SkeletonCard() {
+  return (
+    <div className="bg-card rounded-2xl shadow-card overflow-hidden animate-pulse">
+      <div className="h-1 w-full bg-muted" />
+      <div className="p-5 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="h-12 w-12 rounded-2xl bg-muted" />
+          <div className="space-y-2 flex-1">
+            <div className="h-3.5 bg-muted rounded w-3/4" />
+            <div className="h-2.5 bg-muted rounded w-1/2" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-14 bg-muted rounded-xl" />)}
+        </div>
+        <div className="flex gap-2">
+          <div className="h-6 w-20 bg-muted rounded-full" />
+          <div className="h-6 w-24 bg-muted rounded-full" />
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ─── Employee Card ────────────────────────────────────────────────────────────
 
 function EmployeeCard({ emp, month, year }: { emp: EmpStat; month: number; year: number }) {
-  const status = statusOf(emp)
-  const cfg = STATUS_CONFIG[status]
+  const status  = statusOf(emp)
   const balance = emp.monthBalance
-  const initials = emp.name.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase()
+  const accum   = emp.accumulatedBalance
+
+  const accentColor = status === 'danger'
+    ? 'from-red-500 to-rose-600'
+    : status === 'warning'
+    ? 'from-amber-400 to-orange-500'
+    : 'from-emerald-400 to-teal-500'
+
+  const statusLabel = status === 'danger' ? 'Pendências' : status === 'warning' ? 'Atenção' : 'Em dia'
+  const statusDot   = status === 'danger' ? 'bg-red-500' : status === 'warning' ? 'bg-amber-400' : 'bg-emerald-400'
 
   return (
-    <Card className={cn(
-      'card-shadow flex flex-col transition-shadow hover:card-shadow-md',
-      status === 'danger'  && 'border-red-200',
-      status === 'warning' && 'border-amber-200',
+    <div className={cn(
+      'bg-card rounded-2xl shadow-card flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-0.5 hover:shadow-card-hover group',
     )}>
-      <CardContent className="p-4 flex flex-col gap-3 flex-1">
+      {/* Accent bar */}
+      <div className={cn('h-[3px] w-full bg-gradient-to-r', accentColor)} />
 
-        {/* Top: avatar + name + status */}
-        <div className="flex items-start justify-between gap-2">
+      <div className="p-5 flex flex-col gap-4 flex-1">
+        {/* Header: avatar + name + status */}
+        <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
             <div className={cn(
-              'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold',
-              status === 'danger'  ? 'bg-red-100 text-red-700'
-              : status === 'warning' ? 'bg-amber-100 text-amber-700'
-              : 'bg-primary/10 text-primary'
+              'flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-white text-base font-bold shadow-sm',
+              avatarClass(emp.name)
             )}>
-              {initials}
+              {initials(emp.name)}
             </div>
             <div className="min-w-0">
-              <p className="font-semibold text-sm leading-tight truncate">{emp.name}</p>
-              <p className="text-xs text-muted-foreground truncate">{emp.role}</p>
+              <p className="font-semibold text-[14px] leading-tight truncate text-foreground">{emp.name}</p>
+              <p className="text-[12px] text-muted-foreground truncate mt-0.5">{emp.role}</p>
             </div>
           </div>
-          <div className="flex items-center gap-1 shrink-0 pt-0.5">
-            <span className={cn('h-2 w-2 rounded-full', cfg.dot)} />
-            <span className="text-xs text-muted-foreground">{cfg.label}</span>
+          <div className="flex items-center gap-1.5 shrink-0 mt-0.5 bg-muted/60 rounded-full px-2.5 py-1">
+            <span className={cn('h-1.5 w-1.5 rounded-full', statusDot)} />
+            <span className="text-[11px] font-medium text-muted-foreground">{statusLabel}</span>
           </div>
         </div>
 
-        {/* Metrics grid */}
+        {/* Metric grid */}
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-muted/40 rounded-lg px-3 py-2">
-            <p className="text-xs text-muted-foreground">Dias trabalhados</p>
-            <p className="text-sm font-bold mt-0.5">{emp.workedDays} <span className="text-xs font-normal text-muted-foreground">dias</span></p>
-          </div>
-          <div className="bg-muted/40 rounded-lg px-3 py-2">
-            <p className="text-xs text-muted-foreground">Horas trabalhadas</p>
-            <p className="text-sm font-bold mt-0.5">
-              {emp.workedMinutes > 0 ? minutesToTime(emp.workedMinutes) : <span className="text-muted-foreground">—</span>}
+          {/* Dias trabalhados */}
+          <div className="bg-muted/40 rounded-xl px-3.5 py-3 border border-border/40">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Dias Trab.</p>
+            <p className="text-xl font-bold mt-1 text-foreground leading-none">
+              {emp.workedDays}
+              <span className="text-[11px] font-normal text-muted-foreground ml-1">dias</span>
             </p>
           </div>
-          <div className={cn('rounded-lg px-3 py-2', balance >= 0 ? 'bg-emerald-50' : 'bg-red-50')}>
-            <p className="text-xs text-muted-foreground">Saldo do mês</p>
-            <p className={cn('text-sm font-bold mt-0.5 flex items-center gap-1', balance >= 0 ? 'text-emerald-700' : 'text-red-700')}>
-              {balance >= 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-              {balance >= 0 ? '+' : '-'}{minutesToTime(Math.abs(balance))}
+
+          {/* Horas trabalhadas */}
+          <div className="bg-muted/40 rounded-xl px-3.5 py-3 border border-border/40">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">H. Trabalhadas</p>
+            <p className="text-xl font-bold mt-1 text-foreground leading-none font-mono">
+              {emp.workedMinutes > 0 ? minutesToTime(emp.workedMinutes) : <span className="text-muted-foreground text-sm">—</span>}
             </p>
           </div>
-          <div className={cn('rounded-lg px-3 py-2', emp.accumulatedBalance >= 0 ? 'bg-muted/40' : 'bg-red-50')}>
-            <p className="text-xs text-muted-foreground">Saldo acumulado</p>
-            <p className={cn('text-sm font-bold mt-0.5', emp.accumulatedBalance < 0 && 'text-red-700')}>
-              {emp.accumulatedBalance >= 0 ? '+' : '-'}{minutesToTime(Math.abs(emp.accumulatedBalance))}
+
+          {/* Saldo mês */}
+          <div className={cn(
+            'rounded-xl px-3.5 py-3 border',
+            balance > 0 ? 'bg-emerald-50 border-emerald-100' : balance < 0 ? 'bg-red-50 border-red-100' : 'bg-muted/40 border-border/40'
+          )}>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saldo Mês</p>
+            <p className={cn('text-xl font-bold mt-1 leading-none font-mono flex items-center gap-1',
+              balance > 0 ? 'text-emerald-700' : balance < 0 ? 'text-red-700' : 'text-muted-foreground'
+            )}>
+              {balance !== 0 && (balance > 0
+                ? <TrendingUp className="h-3.5 w-3.5" />
+                : <TrendingDown className="h-3.5 w-3.5" />)}
+              {balance === 0 ? '—' : `${balance > 0 ? '+' : '-'}${minutesToTime(Math.abs(balance))}`}
+            </p>
+          </div>
+
+          {/* Saldo acumulado */}
+          <div className={cn(
+            'rounded-xl px-3.5 py-3 border',
+            accum > 0 ? 'bg-emerald-50 border-emerald-100' : accum < 0 ? 'bg-red-50 border-red-100' : 'bg-muted/40 border-border/40'
+          )}>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Acumulado</p>
+            <p className={cn('text-xl font-bold mt-1 leading-none font-mono',
+              accum > 0 ? 'text-emerald-700' : accum < 0 ? 'text-red-700' : 'text-muted-foreground'
+            )}>
+              {accum === 0 ? '—' : `${accum > 0 ? '+' : '-'}${minutesToTime(Math.abs(accum))}`}
             </p>
           </div>
         </div>
@@ -142,45 +182,48 @@ function EmployeeCard({ emp, month, year }: { emp: EmpStat; month: number; year:
         {/* Occurrences */}
         <div className="flex flex-wrap gap-1.5">
           {emp.absences > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1">
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 text-red-700 text-[11px] font-semibold px-2.5 py-1 border border-red-200">
               <AlertTriangle className="h-3 w-3" />{emp.absences} falta{emp.absences > 1 ? 's' : ''}
             </span>
           )}
           {emp.medicalDays > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 text-blue-700 text-xs font-medium px-2.5 py-1">
+            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-700 text-[11px] font-semibold px-2.5 py-1 border border-sky-200">
               <Stethoscope className="h-3 w-3" />{emp.medicalDays} atestado{emp.medicalDays > 1 ? 's' : ''}
             </span>
           )}
           {emp.vacationDays > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 text-violet-700 text-xs font-medium px-2.5 py-1">
+            <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 text-violet-700 text-[11px] font-semibold px-2.5 py-1 border border-violet-200">
               <Umbrella className="h-3 w-3" />{emp.vacationDays} d. férias
             </span>
           )}
           {emp.extraMinutes > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium px-2.5 py-1">
-              <TrendingUp className="h-3 w-3" />+{minutesToTime(emp.extraMinutes)} extras
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-1 border border-emerald-200">
+              <TrendingUp className="h-3 w-3" />+{minutesToTime(emp.extraMinutes)} extra
             </span>
           )}
-          {emp.absences === 0 && emp.medicalDays === 0 && emp.vacationDays === 0 && emp.extraMinutes === 0 && emp.workedDays === 0 && (
-            <span className="text-xs text-muted-foreground italic">Sem lançamentos</span>
-          )}
-          {emp.absences === 0 && emp.medicalDays === 0 && emp.vacationDays === 0 && emp.extraMinutes === 0 && emp.workedDays > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 text-xs font-medium px-2.5 py-1">
+          {emp.workedDays > 0 && emp.absences === 0 && emp.medicalDays === 0 && emp.vacationDays === 0 && emp.extraMinutes === 0 && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-1 border border-emerald-200">
               <CircleCheck className="h-3 w-3" />Sem ocorrências
             </span>
           )}
+          {emp.workedDays === 0 && emp.absences === 0 && (
+            <span className="text-[11px] text-muted-foreground italic">Sem lançamentos</span>
+          )}
         </div>
+      </div>
 
-        {/* Action */}
-        <div className="pt-1 border-t">
-          <Button asChild variant="ghost" size="sm" className="w-full h-8 text-xs justify-start text-muted-foreground hover:text-foreground">
-            <Link to={`/timesheet?employee=${emp.id}`}>
-              <CalendarCheck className="h-3.5 w-3.5 mr-1.5" />Lançar / Ver ponto de {MONTH_NAMES[month]}/{year}
-            </Link>
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      {/* Footer action */}
+      <div className="border-t bg-muted/20 px-5 py-3">
+        <Link
+          to={`/timesheet?employee=${emp.id}`}
+          className="flex items-center gap-2 text-[12px] font-medium text-muted-foreground hover:text-primary transition-colors group/link"
+        >
+          <CalendarCheck className="h-3.5 w-3.5" />
+          Ponto de {MONTH_NAMES[month]}/{year}
+          <span className="ml-auto opacity-0 group-hover/link:opacity-100 transition-opacity text-primary">→</span>
+        </Link>
+      </div>
+    </div>
   )
 }
 
@@ -198,7 +241,6 @@ export function DashboardPage() {
   function nextMonth() {
     if (month === 12) { setMonth(1); setYear(y => y + 1) } else setMonth(m => m + 1)
   }
-  const isCurrentMonth = year === today.getFullYear() && month === today.getMonth() + 1
 
   const { data: resp, isLoading } = useQuery({
     queryKey: ['dashboard', year, month],
@@ -206,146 +248,126 @@ export function DashboardPage() {
   })
 
   const dash = resp?.data as DashData | undefined
-  const allEmployees = dash?.employees ?? []
+  const all  = dash?.employees ?? []
 
   const filtered = useMemo(() => {
-    if (!search.trim()) return allEmployees
+    if (!search.trim()) return all
     const q = search.toLowerCase()
-    return allEmployees.filter(e =>
-      e.name.toLowerCase().includes(q) || e.role.toLowerCase().includes(q)
-    )
-  }, [allEmployees, search])
+    return all.filter(e => e.name.toLowerCase().includes(q) || e.role.toLowerCase().includes(q))
+  }, [all, search])
 
-  // KPI counts
-  const withPending   = allEmployees.filter(e => statusOf(e) === 'danger').length
-  const withWarning   = allEmployees.filter(e => statusOf(e) === 'warning').length
-  const totalAbsences = allEmployees.reduce((s, e) => s + e.absences, 0)
-  const totalMedical  = allEmployees.reduce((s, e) => s + e.medicalDays, 0)
+  const withPending = all.filter(e => statusOf(e) === 'danger').length
+  const totalAbs    = all.reduce((s, e) => s + e.absences, 0)
+  const totalMed    = all.reduce((s, e) => s + e.medicalDays, 0)
+
+  // Sort: danger → warning → ok
+  const sorted = useMemo(() => {
+    const order = { danger: 0, warning: 1, ok: 2 }
+    return [...filtered].sort((a, b) => order[statusOf(a)] - order[statusOf(b)])
+  }, [filtered])
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Visão gerencial por funcionário</p>
+          <h1 className="text-[22px] font-bold tracking-tight text-foreground">Dashboard</h1>
+          <p className="text-[13px] text-muted-foreground mt-0.5">Visão gerencial · {MONTH_NAMES[month]} {year}</p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button asChild variant="outline" size="sm">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button asChild variant="outline" size="sm" className="rounded-xl h-9 text-[13px]">
             <Link to="/reports"><FileText className="h-3.5 w-3.5 mr-1.5" />Relatórios PDF</Link>
           </Button>
-          <Button asChild size="sm">
+          <Button asChild size="sm" className="rounded-xl h-9 text-[13px]">
             <Link to="/timesheet"><Clock className="h-3.5 w-3.5 mr-1.5" />Lançar Ponto</Link>
           </Button>
         </div>
       </div>
 
-      {/* Month selector + KPIs */}
-      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-        {/* Month nav */}
-        <div className="flex items-center gap-1 bg-card border rounded-xl px-1 py-1 card-shadow self-start">
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={prevMonth}>
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <KPI label="Funcionários" value={isLoading ? '—' : (dash?.totalEmployees ?? 0)}
+          icon={Users} gradient="bg-gradient-to-br from-indigo-500 to-blue-600" textColor="text-foreground" />
+        <KPI label="Com pendências" value={isLoading ? '—' : withPending}
+          icon={CircleAlert} gradient="bg-gradient-to-br from-red-500 to-rose-600" textColor={withPending > 0 ? 'text-red-600' : 'text-foreground'} />
+        <KPI label="Faltas no mês" value={isLoading ? '—' : totalAbs}
+          icon={AlertTriangle} gradient="bg-gradient-to-br from-amber-400 to-orange-500" textColor={totalAbs > 0 ? 'text-amber-600' : 'text-foreground'} />
+        <KPI label="Atestados" value={isLoading ? '—' : totalMed}
+          icon={Stethoscope} gradient="bg-gradient-to-br from-sky-400 to-blue-500" textColor={totalMed > 0 ? 'text-sky-600' : 'text-foreground'} />
+      </div>
+
+      {/* Controls: month nav + search */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
+        {/* Month selector */}
+        <div className="flex items-center bg-card rounded-xl border shadow-kpi overflow-hidden">
+          <button
+            onClick={prevMonth}
+            className="flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+          >
             <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <span className="text-sm font-semibold px-3 min-w-[140px] text-center">
+          </button>
+          <span className="text-[13px] font-semibold px-4 text-foreground min-w-[148px] text-center">
             {MONTH_NAMES[month]} {year}
           </span>
-          <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg" onClick={nextMonth} disabled={isCurrentMonth}>
+          <button
+            onClick={nextMonth}
+            disabled={year === today.getFullYear() && month === today.getMonth() + 1}
+            className="flex items-center justify-center h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+          >
             <ChevronRight className="h-4 w-4" />
-          </Button>
+          </button>
         </div>
 
         {/* Search */}
-        <div className="relative w-full sm:w-64">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
           <Input
-            placeholder="Buscar funcionário..."
-            className="pl-9 h-9 text-sm"
+            placeholder="Buscar por nome ou função..."
+            className="pl-9 h-9 rounded-xl text-[13px] bg-card border shadow-kpi"
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
         </div>
       </div>
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KPI label="Funcionários Ativos"  value={dash?.totalEmployees ?? '—'} icon={Users}         iconClass="text-blue-600"    bgClass="bg-blue-50" />
-        <KPI label="Com pendências"       value={isLoading ? '—' : withPending}  sub="faltas ou horas devendo" icon={CircleAlert}     iconClass="text-red-600"     bgClass="bg-red-50" />
-        <KPI label="Faltas no mês"        value={isLoading ? '—' : totalAbsences} icon={AlertTriangle} iconClass="text-amber-600"   bgClass="bg-amber-50" />
-        <KPI label="Atestados no mês"     value={isLoading ? '—' : totalMedical}  icon={Stethoscope}   iconClass="text-sky-600"     bgClass="bg-sky-50" />
-      </div>
-
-      {/* Alert strip */}
-      {!isLoading && (withPending > 0 || withWarning > 0) && (
-        <div className={cn(
-          'rounded-xl border px-4 py-3 flex items-center gap-3 text-sm',
-          withPending > 0 ? 'border-red-200 bg-red-50 text-red-800' : 'border-amber-200 bg-amber-50 text-amber-800'
-        )}>
-          <CircleAlert className="h-4 w-4 shrink-0" />
+      {/* Alert banner */}
+      {!isLoading && withPending > 0 && (
+        <div className="flex items-start gap-3 bg-red-50 border border-red-200 rounded-2xl px-4 py-3.5 text-[13px] text-red-800">
+          <CircleAlert className="h-4 w-4 mt-0.5 shrink-0 text-red-500" />
           <span>
-            {withPending > 0 && <><strong>{withPending}</strong> funcionário{withPending > 1 ? 's' : ''} com faltas ou horas devendo. </>}
-            {withWarning > 0 && <><strong>{withWarning}</strong> com atestados ou horas faltantes. </>}
-            Verifique os cards em destaque abaixo.
+            <strong>{withPending}</strong> funcionário{withPending > 1 ? 's' : ''} com faltas sem justificativa ou saldo negativo em {MONTH_NAMES[month]}.
+            {' '}Verifique os cards marcados como <strong>Pendências</strong> abaixo.
           </span>
         </div>
       )}
 
-      {/* Employee grid */}
+      {/* Cards */}
       {isLoading ? (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => (
-            <Card key={i} className="card-shadow animate-pulse">
-              <CardContent className="p-4 space-y-3">
-                <div className="h-10 bg-muted rounded-lg" />
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="h-12 bg-muted rounded-lg" />
-                  <div className="h-12 bg-muted rounded-lg" />
-                  <div className="h-12 bg-muted rounded-lg" />
-                  <div className="h-12 bg-muted rounded-lg" />
-                </div>
-                <div className="h-6 bg-muted rounded-full w-1/2" />
-              </CardContent>
-            </Card>
-          ))}
+          {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
         </div>
-      ) : filtered.length === 0 ? (
-        <Card className="card-shadow">
-          <CardContent className="py-16 text-center">
-            <Users className="h-10 w-10 mx-auto mb-3 opacity-20" />
-            <p className="text-sm font-medium text-muted-foreground">
-              {search ? 'Nenhum funcionário encontrado' : 'Nenhum funcionário cadastrado'}
-            </p>
-            {!search && (
-              <Button asChild size="sm" className="mt-4">
-                <Link to="/employees/new">Cadastrar funcionário</Link>
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+      ) : sorted.length === 0 ? (
+        <div className="bg-card rounded-2xl shadow-card flex flex-col items-center justify-center py-20 text-center">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted mb-4">
+            <Users className="h-7 w-7 text-muted-foreground opacity-50" />
+          </div>
+          <p className="text-[15px] font-semibold text-foreground">
+            {search ? 'Nenhum resultado' : 'Nenhum funcionário cadastrado'}
+          </p>
+          <p className="text-[13px] text-muted-foreground mt-1">
+            {search ? 'Tente outro nome ou função' : 'Comece cadastrando o primeiro funcionário'}
+          </p>
+          {!search && (
+            <Button asChild size="sm" className="mt-5 rounded-xl">
+              <Link to="/employees/new">Cadastrar funcionário</Link>
+            </Button>
+          )}
+        </div>
       ) : (
-        <>
-          {/* Danger first, then warning, then ok */}
-          {['danger', 'warning', 'ok'].map(status => {
-            const group = filtered.filter(e => statusOf(e) === status)
-            if (group.length === 0) return null
-            const labels: Record<string, string> = { danger: 'Pendências', warning: 'Atenção', ok: 'Em dia' }
-            return (
-              <div key={status}>
-                {filtered.some(e => statusOf(e) !== status) && (
-                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                    {labels[status]} ({group.length})
-                  </p>
-                )}
-                <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
-                  {group.map(emp => (
-                    <EmployeeCard key={emp.id} emp={emp} month={month} year={year} />
-                  ))}
-                </div>
-              </div>
-            )
-          })}
-        </>
+        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
+          {sorted.map(emp => <EmployeeCard key={emp.id} emp={emp} month={month} year={year} />)}
+        </div>
       )}
     </div>
   )
