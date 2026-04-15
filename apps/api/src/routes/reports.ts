@@ -151,9 +151,13 @@ reports.get('/dashboard', async (c) => {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate   = `${year}-${String(month).padStart(2, '0')}-31`
 
-  const [employeesResult, entriesResult] = await Promise.all([
+  type EmpRow   = { id: string; name: string; role: string; cpf: string | null; admission_date: string }
+  type EntryRow = { employee_id: string; day_type: string; worked_minutes: number | null; extra_minutes: number | null; missing_minutes: number | null }
+  type BankRow  = { employee_id: string; balance_minutes: number; accumulated_minutes: number }
+
+  const [employeesResult, entriesResult, bankResult] = await Promise.all([
     c.env.DB
-      .prepare('SELECT id, name, role, cpf FROM employees WHERE company_id = ? AND active = 1 ORDER BY name ASC')
+      .prepare('SELECT id, name, role, cpf, admission_date FROM employees WHERE company_id = ? AND active = 1 ORDER BY name ASC')
       .bind(companyId)
       .all(),
     c.env.DB
@@ -165,34 +169,91 @@ reports.get('/dashboard', async (c) => {
       )
       .bind(companyId, startDate, endDate)
       .all(),
+    // Saldo acumulado até o mês anterior (banco de horas fechado)
+    c.env.DB
+      .prepare(
+        `SELECT hb.employee_id, hb.balance_minutes, hb.accumulated_minutes
+         FROM hour_bank hb
+         JOIN employees e ON e.id = hb.employee_id
+         WHERE e.company_id = ?
+           AND (hb.year < ? OR (hb.year = ? AND hb.month < ?))
+         ORDER BY hb.year DESC, hb.month DESC`
+      )
+      .bind(companyId, year, year, month)
+      .all(),
   ])
-
-  type EmpRow = { id: string; name: string; role: string; cpf: string | null }
-  type EntryRow = { employee_id: string; day_type: string; worked_minutes: number | null; extra_minutes: number | null; missing_minutes: number | null }
 
   const employees = employeesResult.results as EmpRow[]
   const entries   = entriesResult.results as EntryRow[]
+  const bankRows  = bankResult.results as BankRow[]
 
-  const stats: Record<string, { workedMinutes: number; extraMinutes: number; missingMinutes: number; absences: number }> = {}
-  for (const emp of employees) stats[emp.id] = { workedMinutes: 0, extraMinutes: 0, missingMinutes: 0, absences: 0 }
+  // Pega o acumulado anterior mais recente por funcionário
+  const prevAccumulated: Record<string, number> = {}
+  for (const b of bankRows) {
+    if (prevAccumulated[b.employee_id] === undefined) {
+      prevAccumulated[b.employee_id] = b.accumulated_minutes
+    }
+  }
+
+  type Stats = {
+    workedDays: number
+    workedMinutes: number
+    extraMinutes: number
+    missingMinutes: number
+    absences: number      // faltas sem justificativa
+    medicalDays: number   // atestados
+    vacationDays: number  // férias
+    holidays: number      // feriados
+    prevAccumulated: number
+  }
+
+  const stats: Record<string, Stats> = {}
+  for (const emp of employees) {
+    stats[emp.id] = {
+      workedDays: 0, workedMinutes: 0, extraMinutes: 0, missingMinutes: 0,
+      absences: 0, medicalDays: 0, vacationDays: 0, holidays: 0,
+      prevAccumulated: prevAccumulated[emp.id] ?? 0,
+    }
+  }
 
   for (const e of entries) {
-    if (!stats[e.employee_id]) continue
-    stats[e.employee_id].workedMinutes  += e.worked_minutes  ?? 0
-    stats[e.employee_id].extraMinutes   += e.extra_minutes   ?? 0
-    stats[e.employee_id].missingMinutes += e.missing_minutes ?? 0
-    if (e.day_type === 'absence') stats[e.employee_id].absences++
+    const s = stats[e.employee_id]
+    if (!s) continue
+    s.workedMinutes  += e.worked_minutes  ?? 0
+    s.extraMinutes   += e.extra_minutes   ?? 0
+    s.missingMinutes += e.missing_minutes ?? 0
+    if (e.day_type === 'worked')   s.workedDays++
+    if (e.day_type === 'absence')  s.absences++
+    if (e.day_type === 'medical')  s.medicalDays++
+    if (e.day_type === 'vacation') s.vacationDays++
+    if (e.day_type === 'holiday')  s.holidays++
   }
 
   return c.json({
     data: {
       year, month,
-      totalEmployees:     employees.length,
-      totalWorkedMinutes: Object.values(stats).reduce((s, v) => s + v.workedMinutes,  0),
-      totalExtraMinutes:  Object.values(stats).reduce((s, v) => s + v.extraMinutes,   0),
-      totalMissingMinutes:Object.values(stats).reduce((s, v) => s + v.missingMinutes, 0),
-      totalAbsences:      Object.values(stats).reduce((s, v) => s + v.absences,       0),
-      employees: employees.map(emp => ({ ...emp, ...stats[emp.id] })),
+      totalEmployees: employees.length,
+      employees: employees.map(emp => {
+        const s = stats[emp.id]
+        const monthBalance = s.extraMinutes - s.missingMinutes
+        return {
+          id: emp.id,
+          name: emp.name,
+          role: emp.role,
+          cpf: emp.cpf,
+          admissionDate: emp.admission_date,
+          workedDays: s.workedDays,
+          workedMinutes: s.workedMinutes,
+          extraMinutes: s.extraMinutes,
+          missingMinutes: s.missingMinutes,
+          absences: s.absences,
+          medicalDays: s.medicalDays,
+          vacationDays: s.vacationDays,
+          holidays: s.holidays,
+          monthBalance,
+          accumulatedBalance: s.prevAccumulated + monthBalance,
+        }
+      }),
     },
   })
 })
