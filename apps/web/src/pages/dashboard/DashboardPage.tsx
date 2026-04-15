@@ -130,47 +130,36 @@ function EmployeeCard({ emp, month, year }: { emp: EmpStat; month: number; year:
           </div>
         </div>
 
-        {/* Metric grid */}
+        {/* Row 1: horas */}
         <div className="grid grid-cols-2 gap-2">
-          {/* Dias trabalhados */}
           <div className="bg-muted/40 rounded-xl px-3.5 py-3 border border-border/40">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Dias Trab.</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Dias Trabalhados</p>
             <p className="text-xl font-bold mt-1 text-foreground leading-none">
               {emp.workedDays}
               <span className="text-[11px] font-normal text-muted-foreground ml-1">dias</span>
             </p>
           </div>
-
-          {/* Horas trabalhadas */}
           <div className="bg-muted/40 rounded-xl px-3.5 py-3 border border-border/40">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">H. Trabalhadas</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Horas Trabalhadas</p>
             <p className="text-xl font-bold mt-1 text-foreground leading-none font-mono">
               {emp.workedMinutes > 0 ? minutesToTime(emp.workedMinutes) : <span className="text-muted-foreground text-sm">—</span>}
             </p>
           </div>
-
-          {/* Saldo mês */}
-          <div className={cn(
-            'rounded-xl px-3.5 py-3 border',
+          <div className={cn('rounded-xl px-3.5 py-3 border',
             balance > 0 ? 'bg-emerald-50 border-emerald-100' : balance < 0 ? 'bg-red-50 border-red-100' : 'bg-muted/40 border-border/40'
           )}>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saldo Mês</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saldo do Mês</p>
             <p className={cn('text-xl font-bold mt-1 leading-none font-mono flex items-center gap-1',
               balance > 0 ? 'text-emerald-700' : balance < 0 ? 'text-red-700' : 'text-muted-foreground'
             )}>
-              {balance !== 0 && (balance > 0
-                ? <TrendingUp className="h-3.5 w-3.5" />
-                : <TrendingDown className="h-3.5 w-3.5" />)}
+              {balance !== 0 && (balance > 0 ? <TrendingUp className="h-3.5 w-3.5" /> : <TrendingDown className="h-3.5 w-3.5" />)}
               {balance === 0 ? '—' : `${balance > 0 ? '+' : '-'}${minutesToTime(Math.abs(balance))}`}
             </p>
           </div>
-
-          {/* Saldo acumulado */}
-          <div className={cn(
-            'rounded-xl px-3.5 py-3 border',
+          <div className={cn('rounded-xl px-3.5 py-3 border',
             accum > 0 ? 'bg-emerald-50 border-emerald-100' : accum < 0 ? 'bg-red-50 border-red-100' : 'bg-muted/40 border-border/40'
           )}>
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Acumulado</p>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Saldo Acumulado</p>
             <p className={cn('text-xl font-bold mt-1 leading-none font-mono',
               accum > 0 ? 'text-emerald-700' : accum < 0 ? 'text-red-700' : 'text-muted-foreground'
             )}>
@@ -179,37 +168,82 @@ function EmployeeCard({ emp, month, year }: { emp: EmpStat; month: number; year:
           </div>
         </div>
 
-        {/* Occurrences */}
-        <div className="flex flex-wrap gap-1.5">
-          {emp.absences > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 text-red-700 text-[11px] font-semibold px-2.5 py-1 border border-red-200">
-              <AlertTriangle className="h-3 w-3" />{emp.absences} falta{emp.absences > 1 ? 's' : ''}
-            </span>
-          )}
-          {emp.medicalDays > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 text-sky-700 text-[11px] font-semibold px-2.5 py-1 border border-sky-200">
-              <Stethoscope className="h-3 w-3" />{emp.medicalDays} atestado{emp.medicalDays > 1 ? 's' : ''}
-            </span>
-          )}
-          {emp.vacationDays > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 text-violet-700 text-[11px] font-semibold px-2.5 py-1 border border-violet-200">
-              <Umbrella className="h-3 w-3" />{emp.vacationDays} d. férias
-            </span>
-          )}
-          {emp.extraMinutes > 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-1 border border-emerald-200">
-              <TrendingUp className="h-3 w-3" />+{minutesToTime(emp.extraMinutes)} extra
-            </span>
-          )}
-          {emp.workedDays > 0 && emp.absences === 0 && emp.medicalDays === 0 && emp.vacationDays === 0 && emp.extraMinutes === 0 && (
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-1 border border-emerald-200">
-              <CircleCheck className="h-3 w-3" />Sem ocorrências
-            </span>
-          )}
-          {emp.workedDays === 0 && emp.absences === 0 && (
-            <span className="text-[11px] text-muted-foreground italic">Sem lançamentos</span>
-          )}
-        </div>
+        {/* Row 2: faltas detalhadas */}
+        {(() => {
+          const totalFaltas = emp.absences + emp.medicalDays
+          const hasAny = totalFaltas > 0 || emp.vacationDays > 0 || emp.extraMinutes > 0
+
+          if (!hasAny && emp.workedDays > 0) return (
+            <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-100 rounded-xl px-3.5 py-3">
+              <CircleCheck className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span className="text-[12px] font-semibold text-emerald-700">Sem ocorrências neste mês</span>
+            </div>
+          )
+
+          if (!hasAny && emp.workedDays === 0) return (
+            <div className="flex items-center gap-2 bg-muted/40 border border-border/40 rounded-xl px-3.5 py-3">
+              <span className="text-[12px] text-muted-foreground italic">Nenhum lançamento registrado</span>
+            </div>
+          )
+
+          return (
+            <div className="space-y-2">
+              {/* Faltas — bloco principal quando existir */}
+              {totalFaltas > 0 && (
+                <div className={cn(
+                  'rounded-xl border px-3.5 py-3',
+                  emp.absences > 0 ? 'bg-red-50 border-red-200' : 'bg-amber-50 border-amber-200'
+                )}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                      <AlertTriangle className="h-3 w-3" /> Total de Faltas
+                    </p>
+                    <span className={cn(
+                      'text-[13px] font-bold',
+                      emp.absences > 0 ? 'text-red-700' : 'text-amber-700'
+                    )}>
+                      {totalFaltas} dia{totalFaltas > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  {/* Breakdown */}
+                  <div className="flex gap-3">
+                    <div className="flex-1">
+                      <p className="text-[10px] text-muted-foreground">Sem justificativa</p>
+                      <p className={cn('text-[15px] font-bold leading-tight', emp.absences > 0 ? 'text-red-700' : 'text-muted-foreground')}>
+                        {emp.absences}
+                        <span className="text-[10px] font-normal ml-0.5">dia{emp.absences !== 1 ? 's' : ''}</span>
+                      </p>
+                    </div>
+                    <div className="w-px bg-border/60 self-stretch" />
+                    <div className="flex-1">
+                      <p className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                        <Stethoscope className="h-2.5 w-2.5" /> Com atestado
+                      </p>
+                      <p className={cn('text-[15px] font-bold leading-tight', emp.medicalDays > 0 ? 'text-sky-700' : 'text-muted-foreground')}>
+                        {emp.medicalDays}
+                        <span className="text-[10px] font-normal ml-0.5">dia{emp.medicalDays !== 1 ? 's' : ''}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Outros eventos */}
+              <div className="flex flex-wrap gap-1.5">
+                {emp.vacationDays > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 text-violet-700 text-[11px] font-semibold px-2.5 py-1 border border-violet-200">
+                    <Umbrella className="h-3 w-3" />{emp.vacationDays} dia{emp.vacationDays > 1 ? 's' : ''} de férias
+                  </span>
+                )}
+                {emp.extraMinutes > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 text-emerald-700 text-[11px] font-semibold px-2.5 py-1 border border-emerald-200">
+                    <TrendingUp className="h-3 w-3" />+{minutesToTime(emp.extraMinutes)} extras
+                  </span>
+                )}
+              </div>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Footer action */}
