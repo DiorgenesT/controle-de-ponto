@@ -17,61 +17,62 @@ const DAY_TYPE_LABELS: Record<string, string> = {
   medical:  'ATESTADO',
 }
 
-// A4 landscape usable width ≈ 841 − 2×28 = 785 pt
-// Column widths must sum to exactly 785 for flush right edge
+// A4 landscape usable width: 841 − 2×18 = 805 pt
+// Rows: até 31 dias + cabeçalho. Altura disponível: 595 − 2×18 = 559 pt
+// Altura estimada por linha: ~9 pt → 32 linhas = 288 pt → sobram ~271 pt p/ resto
 const COL = {
-  dia:     22,
-  sem:     52,
-  entrada: 44,
-  saidaA:  44,
-  retorno: 44,
-  saida:   44,
-  htrab:   44,
-  hextra:  44,
-  hfalta:  44,
-  obs:     403, // 785 − (22+52+44×7) = 785 − 382 = 403  → generous OBS
+  dia:     20,
+  sem:     46,
+  entrada: 40,
+  saidaA:  40,
+  retorno: 40,
+  saida:   40,
+  htrab:   40,
+  hextra:  40,
+  hfalta:  40,
+  obs:     419, // 805 − (20+46+40×7) = 805 − 346 = 459 → reservamos 419, margem interna
 } as const
 
 const s = StyleSheet.create({
-  page: { padding: 28, fontSize: 8, fontFamily: 'Helvetica' },
+  page: { padding: 18, fontSize: 7, fontFamily: 'Helvetica' },
 
   // ── Header ──────────────────────────────────────────────────────────────────
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: 5,
   },
-  companyName: { fontSize: 14, fontFamily: 'Helvetica-Bold' },
-  title:       { fontSize: 12, fontFamily: 'Helvetica-Bold' },
-  cnpj:        { fontSize: 8, textAlign: 'right' },
-  addressLine: { fontSize: 7, textAlign: 'right', color: '#555' },
+  companyName: { fontSize: 11, fontFamily: 'Helvetica-Bold' },
+  title:       { fontSize: 10, fontFamily: 'Helvetica-Bold' },
+  cnpj:        { fontSize: 7, textAlign: 'right' },
+  addressLine: { fontSize: 6.5, textAlign: 'right', color: '#555' },
 
   // ── Employee info ────────────────────────────────────────────────────────────
-  infoSection: { marginBottom: 4 },
-  infoRow:     { flexDirection: 'row', marginBottom: 3 },
-  infoLabel:   { fontFamily: 'Helvetica-Bold', width: 44 },
+  infoSection: { marginBottom: 2 },
+  infoRow:     { flexDirection: 'row', marginBottom: 2 },
+  infoLabel:   { fontFamily: 'Helvetica-Bold', width: 40 },
   infoValue:   { flex: 1 },
-  infoBlock:   { width: 370, marginRight: 20 },   // left info column
-  infoBlockB:  { flex: 1 },                        // right info column
+  infoBlock:   { width: 370, marginRight: 20 },
+  infoBlockB:  { flex: 1 },
 
-  divider: { borderBottomWidth: 1, borderBottomColor: '#000', marginVertical: 6 },
+  divider: { borderBottomWidth: 0.75, borderBottomColor: '#000', marginVertical: 4 },
 
   // ── Table ────────────────────────────────────────────────────────────────────
-  table:    { marginTop: 4 },
+  table:    { marginTop: 2 },
   thead:    {
     flexDirection: 'row',
     backgroundColor: '#e8e8e8',
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
+    borderTopWidth: 0.75,
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
+    borderBottomWidth: 0.75,
     borderColor: '#888',
   },
   trow:     {
     flexDirection: 'row',
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
+    borderLeftWidth: 0.75,
+    borderRightWidth: 0.75,
     borderBottomWidth: 0.5,
     borderColor: '#aaa',
   },
@@ -79,27 +80,25 @@ const s = StyleSheet.create({
   rowSat:   { backgroundColor: '#eff6ff' },
   rowSun:   { backgroundColor: '#f3f3f3' },
 
-  // cell padding shared
-  cell: { paddingHorizontal: 3, paddingVertical: 2 },
-  thText: { fontFamily: 'Helvetica-Bold', fontSize: 7 },
+  thText: { fontFamily: 'Helvetica-Bold', fontSize: 6.5 },
 
-  cDia:    { width: COL.dia,     paddingHorizontal: 3, paddingVertical: 2, textAlign: 'center' },
-  cSem:    { width: COL.sem,     paddingHorizontal: 3, paddingVertical: 2 },
-  cHora:   { width: COL.entrada, paddingHorizontal: 3, paddingVertical: 2, textAlign: 'center' },
-  cObs:    { width: COL.obs,     paddingHorizontal: 3, paddingVertical: 2 },
+  cDia:    { width: COL.dia,     paddingHorizontal: 2, paddingVertical: 1.5, textAlign: 'center' },
+  cSem:    { width: COL.sem,     paddingHorizontal: 2, paddingVertical: 1.5 },
+  cHora:   { width: COL.entrada, paddingHorizontal: 2, paddingVertical: 1.5, textAlign: 'center' },
+  cObs:    { width: COL.obs,     paddingHorizontal: 2, paddingVertical: 1.5 },
 
   // ── Summary ──────────────────────────────────────────────────────────────────
-  summary:      { marginTop: 10, paddingTop: 6, borderTopWidth: 1, borderTopColor: '#000' },
-  summaryTitle: { fontFamily: 'Helvetica-Bold', fontSize: 9, marginBottom: 4 },
-  summaryRow:   { flexDirection: 'row', marginBottom: 2 },
-  summaryLabel: { fontFamily: 'Helvetica-Bold', width: 140, marginRight: 4 },
-  summaryBlock: { width: 240, marginRight: 40 },
+  summary:      { marginTop: 5, paddingTop: 4, borderTopWidth: 0.75, borderTopColor: '#000' },
+  summaryTitle: { fontFamily: 'Helvetica-Bold', fontSize: 7.5, marginBottom: 3 },
+  summaryRow:   { flexDirection: 'row', marginBottom: 1.5 },
+  summaryLabel: { fontFamily: 'Helvetica-Bold', width: 130, marginRight: 4 },
+  summaryBlock: { width: 230, marginRight: 40 },
 
   // ── Signature ────────────────────────────────────────────────────────────────
-  sigArea:  { marginTop: 18, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
-  sigLine:  { borderBottomWidth: 1, borderBottomColor: '#000', width: 220, marginTop: 20 },
-  sigLabel: { fontSize: 7, color: '#555', marginTop: 2 },
-  dateText: { fontSize: 8 },
+  sigArea:  { marginTop: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+  sigLine:  { borderBottomWidth: 0.75, borderBottomColor: '#000', width: 200, marginTop: 14 },
+  sigLabel: { fontSize: 6.5, color: '#555', marginTop: 2 },
+  dateText: { fontSize: 7 },
 })
 
 interface Props {
