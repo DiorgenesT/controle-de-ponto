@@ -87,4 +87,15 @@ export const reportsApi = {
     request<{ data: unknown[] }>(`/reports/hourbank?employeeId=${employeeId}`),
   dashboard: (year: number, month: number) =>
     request<{ data: unknown }>(`/reports/dashboard?year=${year}&month=${month}`),
+  closeMonth: (employeeId: string, year: number, month: number) =>
+    request('/reports/hourbank/close', { method: 'POST', body: JSON.stringify({ employeeId, year, month }) }),
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+export const usersApi = {
+  list: () => request<{ data: unknown[] }>('/users'),
+  create: (data: unknown) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id: string, data: unknown) => request(`/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  deactivate: (id: string) => request(`/users/${id}`, { method: 'DELETE' }),
 }

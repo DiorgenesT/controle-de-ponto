@@ -3,7 +3,7 @@ import { monthQuerySchema, calculateMonthlySummary } from '@ponto/shared'
 import type { TimeEntry } from '@ponto/shared'
 import type { Env } from '../lib/types'
 import type { AuthContext } from '../middleware/auth'
-import { authMiddleware } from '../middleware/auth'
+import { authMiddleware, requireRole } from '../middleware/auth'
 
 const reports = new Hono<{ Bindings: Env } & AuthContext>()
 
@@ -97,7 +97,7 @@ reports.get('/monthly', async (c) => {
         weekdayEnd: employeeRow.weekday_end,
         saturdayStart: employeeRow.saturday_start,
         saturdayEnd: employeeRow.saturday_end,
-        worksSaturday: employeeRow.works_saturday === 1,
+        saturdayMode: (employeeRow.saturday_mode as string | null) ?? 'all',
         toleranceMinutes: employeeRow.tolerance_minutes,
         dailyHoursExpected: employeeRow.daily_hours_expected,
         active: employeeRow.active === 1,
@@ -234,7 +234,7 @@ reports.get('/dashboard', async (c) => {
       year, month,
       totalEmployees: employees.length,
       employees: employees.map(emp => {
-        const s = stats[emp.id]
+        const s = stats[emp.id]!
         const monthBalance = s.extraMinutes - s.missingMinutes
         return {
           id: emp.id,
@@ -256,6 +256,79 @@ reports.get('/dashboard', async (c) => {
       }),
     },
   })
+})
+
+// POST /reports/hourbank/close
+reports.post('/hourbank/close', requireRole('admin', 'manager'), async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const parsed = monthQuerySchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json({ error: 'Dados inválidos', code: 'VALIDATION_ERROR' }, 400)
+  }
+
+  const { employeeId, year, month } = parsed.data
+  const { companyId } = c.get('user')
+
+  const employee = await c.env.DB
+    .prepare('SELECT id FROM employees WHERE id = ? AND company_id = ? LIMIT 1')
+    .bind(employeeId, companyId)
+    .first()
+
+  if (!employee) return c.json({ error: 'Funcionário não encontrado', code: 'NOT_FOUND' }, 404)
+
+  const startDate = `${year}-${String(month).padStart(2, '0')}-01`
+  const endDate   = `${year}-${String(month).padStart(2, '0')}-31`
+
+  const [entriesResult, prevBankRow] = await Promise.all([
+    c.env.DB
+      .prepare('SELECT * FROM time_entries WHERE employee_id = ? AND entry_date >= ? AND entry_date <= ?')
+      .bind(employeeId, startDate, endDate)
+      .all(),
+    c.env.DB
+      .prepare(
+        `SELECT accumulated_minutes FROM hour_bank
+         WHERE employee_id = ? AND (year < ? OR (year = ? AND month < ?))
+         ORDER BY year DESC, month DESC LIMIT 1`
+      )
+      .bind(employeeId, year, year, month)
+      .first<{ accumulated_minutes: number }>(),
+  ])
+
+  const entries = entriesResult.results.map(r => rowToEntry(r as Record<string, unknown>))
+  const summary = calculateMonthlySummary(entries)
+  const prevAccumulated = prevBankRow?.accumulated_minutes ?? 0
+  const balanceMinutes = summary.totalExtraMinutes - summary.totalMissingMinutes
+  const accumulatedMinutes = prevAccumulated + balanceMinutes
+
+  await c.env.DB
+    .prepare(
+      `INSERT INTO hour_bank
+         (id, employee_id, year, month, total_worked_minutes, total_extra_minutes,
+          total_missing_minutes, balance_minutes, accumulated_minutes, closed, closed_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
+       ON CONFLICT(employee_id, year, month) DO UPDATE SET
+         total_worked_minutes  = excluded.total_worked_minutes,
+         total_extra_minutes   = excluded.total_extra_minutes,
+         total_missing_minutes = excluded.total_missing_minutes,
+         balance_minutes       = excluded.balance_minutes,
+         accumulated_minutes   = excluded.accumulated_minutes,
+         closed                = 1,
+         closed_at             = datetime('now'),
+         updated_at            = datetime('now')`
+    )
+    .bind(
+      crypto.randomUUID(), employeeId, year, month,
+      summary.totalWorkedMinutes, summary.totalExtraMinutes,
+      summary.totalMissingMinutes, balanceMinutes, accumulatedMinutes
+    )
+    .run()
+
+  const row = await c.env.DB
+    .prepare('SELECT * FROM hour_bank WHERE employee_id = ? AND year = ? AND month = ? LIMIT 1')
+    .bind(employeeId, year, month)
+    .first()
+
+  return c.json({ data: row })
 })
 
 export default reports

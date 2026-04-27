@@ -1,6 +1,6 @@
 import { Hono } from 'hono'
 import { upsertTimeEntrySchema, monthQuerySchema, calculateDay } from '@ponto/shared'
-import type { Employee, TimeEntry } from '@ponto/shared'
+import type { Employee, TimeEntry, SaturdayMode } from '@ponto/shared'
 import type { Env } from '../lib/types'
 import type { AuthContext } from '../middleware/auth'
 import { authMiddleware } from '../middleware/auth'
@@ -86,10 +86,10 @@ timeEntries.post('/', async (c) => {
 
   if (!employeeRow) return c.json({ error: 'Funcionário não encontrado', code: 'NOT_FOUND' }, 404)
 
-  const emp: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'worksSaturday'> = {
+  const emp: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'saturdayMode'> = {
     toleranceMinutes: employeeRow.tolerance_minutes as number,
     dailyHoursExpected: employeeRow.daily_hours_expected as number,
-    worksSaturday: employeeRow.works_saturday === 1,
+    saturdayMode: ((employeeRow.saturday_mode as string | null) ?? 'all') as SaturdayMode,
   }
 
   // Calculate hours

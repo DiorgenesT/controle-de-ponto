@@ -44,7 +44,7 @@ export function EmployeeFormPage() {
       weekdayEnd: '18:00',
       saturdayStart: '08:00',
       saturdayEnd: '12:00',
-      worksSaturday: true,
+      saturdayMode: 'all' as const,
       toleranceMinutes: 10,
       dailyHoursExpected: 8,
     },
@@ -61,7 +61,7 @@ export function EmployeeFormPage() {
         weekdayEnd: emp.weekdayEnd,
         saturdayStart: emp.saturdayStart ?? '08:00',
         saturdayEnd: emp.saturdayEnd ?? '12:00',
-        worksSaturday: emp.worksSaturday,
+        saturdayMode: emp.saturdayMode,
         toleranceMinutes: emp.toleranceMinutes,
         dailyHoursExpected: emp.dailyHoursExpected,
       })
@@ -88,7 +88,7 @@ export function EmployeeFormPage() {
     onError: (err: Error) => toast({ title: err.message, variant: 'destructive' }),
   })
 
-  const worksSaturday = watch('worksSaturday')
+  const saturdayMode = watch('saturdayMode')
   const isPending = createMutation.isPending || updateMutation.isPending
 
   async function onSubmit(data: EmployeeForm) {
@@ -187,18 +187,22 @@ export function EmployeeFormPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-3 pt-2">
-              <input
-                id="worksSaturday"
-                type="checkbox"
-                className="h-4 w-4 rounded border-input"
-                {...register('worksSaturday')}
-              />
-              <Label htmlFor="worksSaturday">Trabalha aos sábados</Label>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label htmlFor="saturdayMode">Jornada aos sábados</Label>
+              <select
+                id="saturdayMode"
+                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                {...register('saturdayMode')}
+              >
+                <option value="all">Todos os sábados</option>
+                <option value="first_two">Apenas 1º e 2º sábado do mês</option>
+                <option value="none">Não trabalha aos sábados</option>
+              </select>
+              {errors.saturdayMode && <p className="text-xs text-destructive">{errors.saturdayMode.message}</p>}
             </div>
 
-            {worksSaturday && (
-              <div className="grid gap-4 sm:grid-cols-2">
+            {saturdayMode !== 'none' && (
+              <div className="grid gap-4 sm:grid-cols-2 sm:col-span-2">
                 <div className="space-y-1.5">
                   <Label>Entrada (Sábado)</Label>
                   <Input type="time" {...register('saturdayStart')} />

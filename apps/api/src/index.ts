@@ -7,6 +7,7 @@ import employeeRoutes from './routes/employees'
 import timeEntryRoutes from './routes/timeEntries'
 import reportRoutes from './routes/reports'
 import companyRoutes from './routes/company'
+import userRoutes from './routes/users'
 
 const app = new Hono<{ Bindings: Env }>()
 
@@ -37,6 +38,7 @@ app.route('/employees', employeeRoutes)
 app.route('/timeentries', timeEntryRoutes)
 app.route('/reports', reportRoutes)
 app.route('/company', companyRoutes)
+app.route('/users', userRoutes)
 
 // ─── Health Check ─────────────────────────────────────────────────────────────
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }))

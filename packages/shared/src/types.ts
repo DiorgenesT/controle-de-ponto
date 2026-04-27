@@ -21,6 +21,8 @@ export interface Company {
   createdAt: string
 }
 
+export type SaturdayMode = 'all' | 'first_two' | 'none'
+
 export interface Employee {
   id: string
   companyId: string
@@ -32,7 +34,7 @@ export interface Employee {
   weekdayEnd: string            // 'HH:MM'
   saturdayStart: string | null  // 'HH:MM'
   saturdayEnd: string | null    // 'HH:MM'
-  worksSaturday: boolean
+  saturdayMode: SaturdayMode    // 'all' | 'first_two' | 'none'
   toleranceMinutes: number
   dailyHoursExpected: number    // liquid hours per weekday
   active: boolean

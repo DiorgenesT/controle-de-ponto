@@ -20,7 +20,7 @@ function rowToEmployee(row: Record<string, unknown>) {
     weekdayEnd: row.weekday_end,
     saturdayStart: row.saturday_start,
     saturdayEnd: row.saturday_end,
-    worksSaturday: row.works_saturday === 1,
+    saturdayMode: row.saturday_mode ?? 'all',
     toleranceMinutes: row.tolerance_minutes,
     dailyHoursExpected: row.daily_hours_expected,
     active: row.active === 1,
@@ -75,14 +75,14 @@ employees.post('/', requireRole('admin', 'manager'), async (c) => {
     .prepare(
       `INSERT INTO employees
         (id, company_id, name, role, cpf, admission_date, weekday_start, weekday_end,
-         saturday_start, saturday_end, works_saturday, tolerance_minutes, daily_hours_expected)
+         saturday_start, saturday_end, saturday_mode, tolerance_minutes, daily_hours_expected)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       id, companyId, d.name, d.role, d.cpf ?? null, d.admissionDate,
       d.weekdayStart, d.weekdayEnd,
       d.saturdayStart ?? null, d.saturdayEnd ?? null,
-      d.worksSaturday ? 1 : 0,
+      d.saturdayMode,
       d.toleranceMinutes, d.dailyHoursExpected
     )
     .run()
@@ -126,7 +126,7 @@ employees.put('/:id', requireRole('admin', 'manager'), async (c) => {
   if (d.weekdayEnd !== undefined) { fields.push('weekday_end = ?'); values.push(d.weekdayEnd) }
   if (d.saturdayStart !== undefined) { fields.push('saturday_start = ?'); values.push(d.saturdayStart) }
   if (d.saturdayEnd !== undefined) { fields.push('saturday_end = ?'); values.push(d.saturdayEnd) }
-  if (d.worksSaturday !== undefined) { fields.push('works_saturday = ?'); values.push(d.worksSaturday ? 1 : 0) }
+  if (d.saturdayMode !== undefined) { fields.push('saturday_mode = ?'); values.push(d.saturdayMode) }
   if (d.toleranceMinutes !== undefined) { fields.push('tolerance_minutes = ?'); values.push(d.toleranceMinutes) }
   if (d.dailyHoursExpected !== undefined) { fields.push('daily_hours_expected = ?'); values.push(d.dailyHoursExpected) }
 

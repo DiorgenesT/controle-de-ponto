@@ -88,9 +88,10 @@ export function EmployeesPage() {
                       <Badge variant="secondary" className="text-xs">
                         {emp.weekdayStart}–{emp.weekdayEnd}
                       </Badge>
-                      {emp.worksSaturday && (
+                      {emp.saturdayMode !== 'none' && (
                         <span className="text-xs text-muted-foreground">
                           Sáb: {emp.saturdayStart}–{emp.saturdayEnd}
+                          {emp.saturdayMode === 'first_two' && ' (1º e 2º)'}
                         </span>
                       )}
                     </div>

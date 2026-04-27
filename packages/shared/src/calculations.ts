@@ -1,4 +1,4 @@
-import type { DailyCalculation, TimeEntry, Employee } from './types'
+import type { DailyCalculation, TimeEntry, Employee, SaturdayMode } from './types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -39,6 +39,18 @@ export function isSunday(dateStr: string): boolean {
   return new Date(`${dateStr}T12:00:00`).getDay() === 0
 }
 
+/**
+ * Returns true if the Saturday on `dateStr` is a working day for the given mode.
+ * 'first_two' = only the 1st and 2nd Saturday of the month.
+ */
+export function isWorkingSaturday(dateStr: string, mode: SaturdayMode): boolean {
+  if (!isSaturday(dateStr)) return false
+  if (mode === 'none') return false
+  if (mode === 'all') return true
+  const dayOfMonth = new Date(`${dateStr}T12:00:00`).getDate()
+  return Math.ceil(dayOfMonth / 7) <= 2
+}
+
 // ─── Core Calculation ─────────────────────────────────────────────────────────
 
 /**
@@ -54,7 +66,7 @@ export function isSunday(dateStr: string): boolean {
  */
 export function calculateDay(
   entry: Pick<TimeEntry, 'clockIn' | 'lunchOut' | 'lunchReturn' | 'clockOut' | 'dayType' | 'entryDate'>,
-  employee: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'worksSaturday'>
+  employee: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'saturdayMode'>
 ): DailyCalculation {
   if (isSunday(entry.entryDate)) {
     return { workedMinutes: 0, expectedMinutes: 0, extraMinutes: 0, missingMinutes: 0, isComplete: false }
@@ -62,7 +74,7 @@ export function calculateDay(
 
   const isSat = isSaturday(entry.entryDate)
   const expectedMinutes = isSat
-    ? (employee.worksSaturday ? SATURDAY_EXPECTED_MINUTES : 0)
+    ? (isWorkingSaturday(entry.entryDate, employee.saturdayMode) ? SATURDAY_EXPECTED_MINUTES : 0)
     : employee.dailyHoursExpected * MINUTES_PER_HOUR
 
   // Company closed or on vacation — neutral, no debit or credit

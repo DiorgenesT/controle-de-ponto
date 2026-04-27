@@ -37,15 +37,15 @@ const cpfSchema = z
     const d = cpf.replace(/\D/g, '')
     if (/^(\d)\1+$/.test(d)) return false
     let s = 0
-    for (let i = 0; i < 9; i++) s += +d[i] * (10 - i)
+    for (let i = 0; i < 9; i++) s += +d[i]! * (10 - i)
     let r = (s * 10) % 11
     if (r === 10 || r === 11) r = 0
-    if (r !== +d[9]) return false
+    if (r !== +d[9]!) return false
     s = 0
-    for (let i = 0; i < 10; i++) s += +d[i] * (11 - i)
+    for (let i = 0; i < 10; i++) s += +d[i]! * (11 - i)
     r = (s * 10) % 11
     if (r === 10 || r === 11) r = 0
-    return r === +d[10]
+    return r === +d[10]!
   }, 'CPF inválido')
   .nullable()
   .optional()
@@ -59,7 +59,7 @@ export const createEmployeeSchema = z.object({
   weekdayEnd: timeHHMM.default('18:00'),
   saturdayStart: timeHHMM.nullable().optional().default('08:00'),
   saturdayEnd: timeHHMM.nullable().optional().default('12:00'),
-  worksSaturday: z.boolean().default(true),
+  saturdayMode: z.enum(['all', 'first_two', 'none']).default('all'),
   toleranceMinutes: z.number().int().min(0).max(30).default(10),
   dailyHoursExpected: z.number().min(1).max(24).default(8),
 })

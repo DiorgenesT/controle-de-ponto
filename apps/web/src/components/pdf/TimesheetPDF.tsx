@@ -172,8 +172,8 @@ export function TimesheetPDF({ report }: Props) {
               <Text style={s.infoLabel}>Horário:</Text>
               <Text style={s.infoValue}>
                 SEG A SEX {employee.weekdayStart} ÀS {employee.weekdayEnd}
-                {employee.worksSaturday
-                  ? `   |   SÁB ${employee.saturdayStart} ÀS ${employee.saturdayEnd}`
+                {employee.saturdayMode !== 'none'
+                  ? `   |   SÁB ${employee.saturdayStart} ÀS ${employee.saturdayEnd}${employee.saturdayMode === 'first_two' ? ' (1º e 2º)' : ''}`
                   : ''}
               </Text>
             </View>

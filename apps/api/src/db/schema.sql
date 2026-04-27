@@ -45,7 +45,8 @@ CREATE TABLE IF NOT EXISTS employees (
   weekday_end           TEXT NOT NULL DEFAULT '18:00',
   saturday_start        TEXT DEFAULT '08:00',
   saturday_end          TEXT DEFAULT '12:00',
-  works_saturday        INTEGER NOT NULL DEFAULT 1,
+  saturday_mode         TEXT NOT NULL DEFAULT 'all'
+                        CHECK(saturday_mode IN ('all','first_two','none')),
   tolerance_minutes     INTEGER NOT NULL DEFAULT 10,
   daily_hours_expected  REAL NOT NULL DEFAULT 8.0,
   active                INTEGER NOT NULL DEFAULT 1,

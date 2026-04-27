@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, getDaysInMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { employeesApi, timeEntriesApi } from '@/lib/api'
-import { calculateDay, getDayOfWeek, isSunday, minutesToTime } from '@ponto/shared'
+import { calculateDay, getDayOfWeek, isSunday, isWorkingSaturday, minutesToTime } from '@ponto/shared'
 import type { Employee, TimeEntry, DayType } from '@ponto/shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -28,6 +28,7 @@ interface DayRow {
   date: string
   dayOfWeek: string
   isSunday: boolean
+  isFreeSaturday: boolean
   entry?: TimeEntry
 }
 
@@ -72,17 +73,23 @@ export function TimesheetPage() {
   const rows: DayRow[] = Array.from({ length: daysInMonth }, (_, i) => {
     const day = i + 1
     const date = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const isFreeSaturday = Boolean(
+      selectedEmployee &&
+      getDayOfWeek(date) === 'SÁBADO' &&
+      !isWorkingSaturday(date, selectedEmployee.saturdayMode)
+    )
     return {
       day,
       date,
       dayOfWeek: getDayOfWeek(date),
       isSunday: isSunday(date),
+      isFreeSaturday,
       entry: entries.find((e) => e.entryDate === date),
     }
   })
 
   function startEdit(row: DayRow) {
-    if (row.isSunday) return
+    if (row.isSunday || row.isFreeSaturday) return
     setEditingDay(row.date)
     setFormData((prev) => ({
       ...prev,
@@ -223,8 +230,8 @@ export function TimesheetPage() {
                           key={row.date}
                           className={cn(
                             'border-b transition-colors',
-                            row.isSunday ? 'bg-muted/30 text-muted-foreground' : 'hover:bg-muted/20',
-                            row.dayOfWeek === 'SÁBADO' && 'bg-blue-50/50',
+                            (row.isSunday || row.isFreeSaturday) ? 'bg-muted/30 text-muted-foreground' : 'hover:bg-muted/20',
+                            row.dayOfWeek === 'SÁBADO' && !row.isFreeSaturday && 'bg-blue-50/50',
                             isEditing && 'bg-primary/5 ring-1 ring-inset ring-primary/20'
                           )}
                         >
@@ -233,6 +240,8 @@ export function TimesheetPage() {
 
                           {row.isSunday ? (
                             <td colSpan={7} className="px-4 py-2 text-xs text-muted-foreground italic">Domingo — Folga</td>
+                          ) : row.isFreeSaturday ? (
+                            <td colSpan={7} className="px-4 py-2 text-xs text-muted-foreground italic">Sábado livre — não trabalha</td>
                           ) : isEditing ? (
                             <>
                               {(['clockIn', 'lunchOut', 'lunchReturn', 'clockOut'] as const).map((field) => (
@@ -307,7 +316,7 @@ export function TimesheetPage() {
 
                           {/* Actions */}
                           <td className="px-2 py-1">
-                            {!row.isSunday && (
+                            {!row.isSunday && !row.isFreeSaturday && (
                               isEditing ? (
                                 <div className="flex gap-1">
                                   <Button size="sm" className="h-7 text-xs px-2" onClick={() => saveDay(row.date)} disabled={upsertMutation.isPending}>
