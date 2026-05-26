@@ -86,10 +86,12 @@ timeEntries.post('/', async (c) => {
 
   if (!employeeRow) return c.json({ error: 'Funcionário não encontrado', code: 'NOT_FOUND' }, 404)
 
-  const emp: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'saturdayMode'> = {
+  const emp: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'saturdayMode' | 'saturdayStart' | 'saturdayEnd'> = {
     toleranceMinutes: employeeRow.tolerance_minutes as number,
     dailyHoursExpected: employeeRow.daily_hours_expected as number,
     saturdayMode: ((employeeRow.saturday_mode as string | null) ?? 'all') as SaturdayMode,
+    saturdayStart: (employeeRow.saturday_start as string | null) ?? null,
+    saturdayEnd: (employeeRow.saturday_end as string | null) ?? null,
   }
 
   // Calculate hours

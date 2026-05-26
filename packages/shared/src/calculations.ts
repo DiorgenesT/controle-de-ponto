@@ -3,7 +3,7 @@ import type { DailyCalculation, TimeEntry, Employee, SaturdayMode } from './type
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 const MINUTES_PER_HOUR = 60
-const SATURDAY_EXPECTED_MINUTES = 4 * MINUTES_PER_HOUR  // 4h
+const SATURDAY_EXPECTED_MINUTES_FALLBACK = 4 * MINUTES_PER_HOUR  // fallback when times not configured
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -66,15 +66,18 @@ export function isWorkingSaturday(dateStr: string, mode: SaturdayMode): boolean 
  */
 export function calculateDay(
   entry: Pick<TimeEntry, 'clockIn' | 'lunchOut' | 'lunchReturn' | 'clockOut' | 'dayType' | 'entryDate'>,
-  employee: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'saturdayMode'>
+  employee: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'saturdayMode' | 'saturdayStart' | 'saturdayEnd'>
 ): DailyCalculation {
   if (isSunday(entry.entryDate)) {
     return { workedMinutes: 0, expectedMinutes: 0, extraMinutes: 0, missingMinutes: 0, isComplete: false }
   }
 
   const isSat = isSaturday(entry.entryDate)
+  const saturdayExpectedMinutes = employee.saturdayStart && employee.saturdayEnd
+    ? Math.max(0, timeToMinutes(employee.saturdayEnd) - timeToMinutes(employee.saturdayStart))
+    : SATURDAY_EXPECTED_MINUTES_FALLBACK
   const expectedMinutes = isSat
-    ? (isWorkingSaturday(entry.entryDate, employee.saturdayMode) ? SATURDAY_EXPECTED_MINUTES : 0)
+    ? (isWorkingSaturday(entry.entryDate, employee.saturdayMode) ? saturdayExpectedMinutes : 0)
     : employee.dailyHoursExpected * MINUTES_PER_HOUR
 
   // Company closed or on vacation — neutral, no debit or credit
