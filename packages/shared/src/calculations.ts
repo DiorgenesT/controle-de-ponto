@@ -90,6 +90,11 @@ export function calculateDay(
     return { workedMinutes: 0, expectedMinutes, extraMinutes: 0, missingMinutes: expectedMinutes, isComplete: false }
   }
 
+  // Banco de horas — day off compensated by previously banked extra hours; debits the balance
+  if (entry.dayType === 'banco_horas') {
+    return { workedMinutes: 0, expectedMinutes, extraMinutes: 0, missingMinutes: expectedMinutes, isComplete: false }
+  }
+
   // Medical certificate — justified absence; treated as full day worked for the hour bank
   if (entry.dayType === 'medical') {
     return { workedMinutes: expectedMinutes, expectedMinutes, extraMinutes: 0, missingMinutes: 0, isComplete: true }

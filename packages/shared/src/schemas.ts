@@ -68,7 +68,7 @@ export const updateEmployeeSchema = createEmployeeSchema.partial()
 
 // ─── Time Entry ───────────────────────────────────────────────────────────────
 
-export const dayTypeSchema = z.enum(['worked', 'closed', 'holiday', 'absence', 'vacation', 'medical'])
+export const dayTypeSchema = z.enum(['worked', 'closed', 'holiday', 'absence', 'vacation', 'medical', 'banco_horas'])
 
 export const upsertTimeEntrySchema = z
   .object({

@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS time_entries (
   lunch_return     TEXT,
   clock_out        TEXT,
   day_type         TEXT NOT NULL DEFAULT 'worked'
-                   CHECK(day_type IN ('worked','closed','holiday','absence','vacation','medical')),
+                   CHECK(day_type IN ('worked','closed','holiday','absence','vacation','medical','banco_horas')),
   notes            TEXT,
   worked_minutes   INTEGER,
   extra_minutes    INTEGER,

@@ -15,12 +15,13 @@ import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 
 const DAY_TYPE_LABELS: Record<DayType, string> = {
-  worked:  'Dia Trabalhado',
-  closed:  'Empresa Fechada',
-  holiday: 'Feriado',
-  absence: 'Falta',
-  vacation:'Férias',
-  medical: 'Atestado',
+  worked:      'Dia Trabalhado',
+  closed:      'Empresa Fechada',
+  holiday:     'Feriado',
+  absence:     'Falta',
+  vacation:    'Férias',
+  medical:     'Atestado',
+  banco_horas: 'Banco de Horas',
 }
 
 interface DayRow {

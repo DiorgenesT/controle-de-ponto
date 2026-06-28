@@ -9,12 +9,13 @@ const MONTH_NAMES = [
 ]
 
 const DAY_TYPE_LABELS: Record<string, string> = {
-  worked:   '',
-  closed:   'EMPRESA FECHADA',
-  holiday:  'FERIADO',
-  absence:  'FALTA',
-  vacation: 'FÉRIAS',
-  medical:  'ATESTADO',
+  worked:      '',
+  closed:      'EMPRESA FECHADA',
+  holiday:     'FERIADO',
+  absence:     'FALTA',
+  vacation:    'FÉRIAS',
+  medical:     'ATESTADO',
+  banco_horas: 'BANCO DE HORAS',
 }
 
 // A4 landscape usable width: 841 − 2×18 = 805 pt

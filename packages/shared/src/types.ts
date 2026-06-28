@@ -41,7 +41,7 @@ export interface Employee {
   createdAt: string
 }
 
-export type DayType = 'worked' | 'closed' | 'holiday' | 'absence' | 'vacation' | 'medical'
+export type DayType = 'worked' | 'closed' | 'holiday' | 'absence' | 'vacation' | 'medical' | 'banco_horas'
 
 export interface TimeEntry {
   id: string

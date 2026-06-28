@@ -200,10 +200,11 @@ reports.get('/dashboard', async (c) => {
     workedMinutes: number
     extraMinutes: number
     missingMinutes: number
-    absences: number      // faltas sem justificativa
-    medicalDays: number   // atestados
-    vacationDays: number  // férias
-    holidays: number      // feriados
+    absences: number        // faltas sem justificativa
+    medicalDays: number     // atestados
+    vacationDays: number    // férias
+    holidays: number        // feriados
+    bancoHorasDays: number  // dias de folga por banco de horas
     prevAccumulated: number
   }
 
@@ -211,7 +212,7 @@ reports.get('/dashboard', async (c) => {
   for (const emp of employees) {
     stats[emp.id] = {
       workedDays: 0, workedMinutes: 0, extraMinutes: 0, missingMinutes: 0,
-      absences: 0, medicalDays: 0, vacationDays: 0, holidays: 0,
+      absences: 0, medicalDays: 0, vacationDays: 0, holidays: 0, bancoHorasDays: 0,
       prevAccumulated: prevAccumulated[emp.id] ?? 0,
     }
   }
@@ -222,11 +223,12 @@ reports.get('/dashboard', async (c) => {
     s.workedMinutes  += e.worked_minutes  ?? 0
     s.extraMinutes   += e.extra_minutes   ?? 0
     s.missingMinutes += e.missing_minutes ?? 0
-    if (e.day_type === 'worked')   s.workedDays++
-    if (e.day_type === 'absence')  s.absences++
-    if (e.day_type === 'medical')  s.medicalDays++
-    if (e.day_type === 'vacation') s.vacationDays++
-    if (e.day_type === 'holiday')  s.holidays++
+    if (e.day_type === 'worked')      s.workedDays++
+    if (e.day_type === 'absence')     s.absences++
+    if (e.day_type === 'medical')     s.medicalDays++
+    if (e.day_type === 'vacation')    s.vacationDays++
+    if (e.day_type === 'holiday')     s.holidays++
+    if (e.day_type === 'banco_horas') s.bancoHorasDays++
   }
 
   return c.json({
@@ -250,6 +252,7 @@ reports.get('/dashboard', async (c) => {
           medicalDays: s.medicalDays,
           vacationDays: s.vacationDays,
           holidays: s.holidays,
+          bancoHorasDays: s.bancoHorasDays,
           monthBalance,
           accumulatedBalance: s.prevAccumulated + monthBalance,
         }
