@@ -80,22 +80,20 @@ CREATE INDEX IF NOT EXISTS idx_time_entries_employee      ON time_entries(employ
 CREATE INDEX IF NOT EXISTS idx_time_entries_date          ON time_entries(entry_date);
 CREATE INDEX IF NOT EXISTS idx_time_entries_employee_date ON time_entries(employee_id, entry_date);
 
--- ─── Hour Bank ────────────────────────────────────────────────────────────────
+-- ─── Hour Bank Adjustments ─────────────────────────────────────────────────────
+-- Manual balance adjustments only. The running accumulated balance is always
+-- computed live from time_entries + these adjustments (see getAccumulatedBeforeMonth
+-- in apps/api/src/lib/hourBank.ts) — there is no "closed month" snapshot anymore.
 
 CREATE TABLE IF NOT EXISTS hour_bank (
-  id                    TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
-  employee_id           TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
-  year                  INTEGER NOT NULL,
-  month                 INTEGER NOT NULL,
-  total_worked_minutes  INTEGER NOT NULL DEFAULT 0,
-  total_extra_minutes   INTEGER NOT NULL DEFAULT 0,
-  total_missing_minutes INTEGER NOT NULL DEFAULT 0,
-  balance_minutes       INTEGER NOT NULL DEFAULT 0,
-  accumulated_minutes   INTEGER NOT NULL DEFAULT 0,
-  closed                INTEGER NOT NULL DEFAULT 0,
-  closed_at             TEXT,
-  created_at            TEXT NOT NULL DEFAULT (datetime('now')),
-  updated_at            TEXT NOT NULL DEFAULT (datetime('now')),
+  id                  TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+  employee_id         TEXT NOT NULL REFERENCES employees(id) ON DELETE CASCADE,
+  year                INTEGER NOT NULL,
+  month               INTEGER NOT NULL,
+  adjustment_minutes  INTEGER NOT NULL DEFAULT 0,
+  note                TEXT,
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at          TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(employee_id, year, month)
 );
 
