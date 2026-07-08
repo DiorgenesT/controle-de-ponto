@@ -1,3 +1,5 @@
+import type { HourBankAdjustment } from '@ponto/shared'
+
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
 function getToken(): string | null {
@@ -84,11 +86,14 @@ export const reportsApi = {
   monthly: (employeeId: string, year: number, month: number) =>
     request<{ data: unknown }>(`/reports/monthly?employeeId=${employeeId}&year=${year}&month=${month}`),
   hourBank: (employeeId: string) =>
-    request<{ data: unknown[] }>(`/reports/hourbank?employeeId=${employeeId}`),
+    request<{ data: HourBankAdjustment[] }>(`/reports/hourbank?employeeId=${employeeId}`),
   dashboard: (year: number, month: number) =>
     request<{ data: unknown }>(`/reports/dashboard?year=${year}&month=${month}`),
-  closeMonth: (employeeId: string, year: number, month: number) =>
-    request('/reports/hourbank/close', { method: 'POST', body: JSON.stringify({ employeeId, year, month }) }),
+  setAdjustment: (employeeId: string, year: number, month: number, adjustmentMinutes: number, note: string | null) =>
+    request<{ data: HourBankAdjustment | null }>('/reports/hourbank/adjustment', {
+      method: 'POST',
+      body: JSON.stringify({ employeeId, year, month, adjustmentMinutes, note }),
+    }),
 }
 
 // ─── Users ────────────────────────────────────────────────────────────────────

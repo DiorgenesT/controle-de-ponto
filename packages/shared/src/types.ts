@@ -60,18 +60,13 @@ export interface TimeEntry {
   updatedAt: string
 }
 
-export interface HourBank {
+export interface HourBankAdjustment {
   id: string
   employeeId: string
   year: number
   month: number
-  totalWorkedMinutes: number
-  totalExtraMinutes: number
-  totalMissingMinutes: number
-  balanceMinutes: number      // extra - missing for the month
-  accumulatedMinutes: number  // running total including prior months
-  closed: boolean
-  closedAt: string | null
+  adjustmentMinutes: number  // manual delta applied to that month's accumulated balance
+  note: string | null
   createdAt: string
   updatedAt: string
 }

@@ -24,3 +24,6 @@ pnpm-debug.log*
 # Build artifacts
 *.tsbuildinfo
 apps/web/dist/
+
+# Subagent-driven-development scratch state
+.superpowers/

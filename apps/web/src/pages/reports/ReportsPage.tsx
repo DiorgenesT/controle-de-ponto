@@ -1,40 +1,42 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { PDFDownloadLink } from '@react-pdf/renderer'
 import { format } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
 import { employeesApi, reportsApi } from '@/lib/api'
-import type { Employee, MonthlyReport } from '@ponto/shared'
+import type { Employee, MonthlyReport, HourBankAdjustment } from '@ponto/shared'
 import { minutesToTime } from '@ponto/shared'
 import { useAuthStore } from '@/store/auth'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { TimesheetPDF } from '@/components/pdf/TimesheetPDF'
 import { toast } from '@/hooks/use-toast'
-import { FileDown, ChevronLeft, ChevronRight, AlertCircle, Lock, History } from 'lucide-react'
+import { FileDown, ChevronLeft, ChevronRight, AlertCircle, History } from 'lucide-react'
 
-interface HourBankRecord {
-  id: string
-  year: number
-  month: number
-  total_worked_minutes: number
-  total_extra_minutes: number
-  total_missing_minutes: number
-  balance_minutes: number
-  accumulated_minutes: number
-  closed: number
-  closed_at: string | null
+function parseHoursInput(input: string): number | null {
+  const trimmed = input.trim()
+  if (trimmed === '') return 0
+  const match = /^([+-]?)(\d{1,3}):(\d{2})$/.exec(trimmed)
+  if (!match) return null
+  const sign = match[1] === '-' ? -1 : 1
+  const hours = Number(match[2])
+  const minutes = Number(match[3])
+  if (minutes > 59) return null
+  return sign * (hours * 60 + minutes)
 }
 
 export function ReportsPage() {
   const { user } = useAuthStore()
   const queryClient = useQueryClient()
-  const canClose = user?.role === 'admin' || user?.role === 'manager'
+  const canAdjust = user?.role === 'admin' || user?.role === 'manager'
 
   const [selectedEmployeeId, setSelectedEmployeeId] = useState('')
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth() + 1)
+  const [adjustmentInput, setAdjustmentInput] = useState('')
+  const [adjustmentNote, setAdjustmentNote] = useState('')
 
   const { data: employeesData } = useQuery({
     queryKey: ['employees'],
@@ -57,15 +59,25 @@ export function ReportsPage() {
     enabled: Boolean(selectedEmployeeId),
   })
 
-  const hourBankRecords = (hourBankData?.data ?? []) as HourBankRecord[]
+  const hourBankRecords = (hourBankData?.data ?? []) as HourBankAdjustment[]
   const currentMonthBank = hourBankRecords.find(r => r.year === currentYear && r.month === currentMonth)
 
-  const closeMutation = useMutation({
-    mutationFn: () => reportsApi.closeMonth(selectedEmployeeId, currentYear, currentMonth),
+  useEffect(() => {
+    const minutes = currentMonthBank?.adjustmentMinutes ?? 0
+    setAdjustmentInput(minutes === 0 ? '' : (minutes > 0 ? '+' : '') + minutesToTime(minutes))
+    setAdjustmentNote(currentMonthBank?.note ?? '')
+  }, [selectedEmployeeId, currentYear, currentMonth, currentMonthBank])
+
+  const adjustMutation = useMutation({
+    mutationFn: () => {
+      const minutes = parseHoursInput(adjustmentInput)
+      if (minutes === null) throw new Error('Formato inválido. Use +HH:MM ou -HH:MM')
+      return reportsApi.setAdjustment(selectedEmployeeId, currentYear, currentMonth, minutes, adjustmentNote || null)
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reports', 'hourbank', selectedEmployeeId] })
       queryClient.invalidateQueries({ queryKey: ['reports', 'monthly', selectedEmployeeId] })
-      toast({ title: 'Mês fechado com sucesso!', variant: 'success' })
+      toast({ title: 'Ajuste salvo!', variant: 'success' })
     },
     onError: (err: Error) => toast({ title: err.message, variant: 'destructive' }),
   })
@@ -194,69 +206,76 @@ export function ReportsPage() {
                   {report.employee.weekdayStart}–{report.employee.weekdayEnd}
                 </Badge>
                 <Badge variant="outline">{report.entries.length} registros</Badge>
-                {currentMonthBank?.closed === 1 && (
-                  <Badge variant="outline" className="text-success border-success/40">
-                    <Lock className="h-3 w-3 mr-1" />
-                    Fechado
-                  </Badge>
-                )}
               </div>
             </CardContent>
           </Card>
 
-          {/* Fechar Mês */}
-          {canClose && (
+          {/* Ajuste de Banco de Horas */}
+          {canAdjust && (
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between py-4">
-                <div>
-                  <CardTitle className="text-base">Banco de Horas</CardTitle>
-                  <p className="text-sm text-muted-foreground mt-0.5 capitalize">
-                    {currentMonthBank?.closed === 1
-                      ? `Mês fechado em ${currentMonthBank.closed_at ? new Date(currentMonthBank.closed_at).toLocaleDateString('pt-BR') : '—'}`
-                      : 'Fechar o mês persiste o saldo no banco de horas'}
-                  </p>
-                </div>
-                <Button
-                  variant={currentMonthBank?.closed === 1 ? 'outline' : 'default'}
-                  size="sm"
-                  onClick={() => closeMutation.mutate()}
-                  disabled={closeMutation.isPending}
-                >
-                  <Lock className="h-4 w-4 mr-1" />
-                  {closeMutation.isPending ? 'Fechando...' : currentMonthBank?.closed === 1 ? 'Refazer Fechamento' : 'Fechar Mês'}
-                </Button>
+              <CardHeader className="py-4">
+                <CardTitle className="text-base">Ajuste de Banco de Horas</CardTitle>
+                <p className="text-sm text-muted-foreground mt-0.5 capitalize">
+                  Lança um ajuste manual de saldo para {monthLabel} — use para injetar saldo de meses
+                  anteriores ao uso do sistema ou corrigir divergências.
+                </p>
               </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex flex-wrap items-end gap-3">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1" htmlFor="adjustment-minutes">
+                      Horas (±HH:MM)
+                    </label>
+                    <Input
+                      id="adjustment-minutes"
+                      className="h-9 w-32 font-mono"
+                      placeholder="+02:30"
+                      value={adjustmentInput}
+                      onChange={(e) => setAdjustmentInput(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex-1 min-w-48">
+                    <label className="text-xs text-muted-foreground block mb-1" htmlFor="adjustment-note">
+                      Observação
+                    </label>
+                    <Input
+                      id="adjustment-note"
+                      className="h-9"
+                      placeholder="Ex: saldo migrado do controle anterior"
+                      value={adjustmentNote}
+                      onChange={(e) => setAdjustmentNote(e.target.value)}
+                    />
+                  </div>
+                  <Button size="sm" onClick={() => adjustMutation.mutate()} disabled={adjustMutation.isPending}>
+                    {adjustMutation.isPending ? 'Salvando...' : 'Salvar Ajuste'}
+                  </Button>
+                </div>
 
-              {hourBankRecords.length > 0 && (
-                <CardContent className="pt-0">
-                  <div className="flex items-center gap-2 mb-3">
-                    <History className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">Histórico</span>
-                  </div>
-                  <div className="space-y-1">
-                    {hourBankRecords.slice(0, 6).map((r) => {
-                      const monthName = new Date(r.year, r.month - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
-                      return (
-                        <div key={r.id} className="flex items-center justify-between py-1.5 text-sm border-b last:border-0">
-                          <span className="capitalize text-muted-foreground">{monthName}</span>
-                          <div className="flex items-center gap-4">
-                            <span className="text-xs text-muted-foreground">
-                              +{minutesToTime(r.total_extra_minutes)} / -{minutesToTime(r.total_missing_minutes)}
-                            </span>
-                            <span className={`font-mono font-medium text-xs w-16 text-right ${r.balance_minutes >= 0 ? 'text-success' : 'text-destructive'}`}>
-                              {r.balance_minutes >= 0 ? '+' : ''}{minutesToTime(r.balance_minutes)}
-                            </span>
-                            <span className={`font-mono font-medium text-xs w-16 text-right ${r.accumulated_minutes >= 0 ? 'text-success' : 'text-destructive'}`}>
-                              acum: {r.accumulated_minutes >= 0 ? '+' : ''}{minutesToTime(r.accumulated_minutes)}
-                            </span>
-                            {r.closed === 1 && <Lock className="h-3 w-3 text-muted-foreground shrink-0" />}
+                {hourBankRecords.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-3">
+                      <History className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Histórico de Ajustes</span>
+                    </div>
+                    <div className="space-y-1">
+                      {hourBankRecords.slice(0, 12).map((r) => {
+                        const monthName = new Date(r.year, r.month - 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })
+                        return (
+                          <div key={r.id} className="flex items-center justify-between py-1.5 text-sm border-b last:border-0">
+                            <span className="capitalize text-muted-foreground">{monthName}</span>
+                            <div className="flex items-center gap-4">
+                              {r.note && <span className="text-xs text-muted-foreground italic">{r.note}</span>}
+                              <span className={`font-mono font-medium text-xs w-16 text-right ${r.adjustmentMinutes >= 0 ? 'text-success' : 'text-destructive'}`}>
+                                {r.adjustmentMinutes >= 0 ? '+' : ''}{minutesToTime(r.adjustmentMinutes)}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
                   </div>
-                </CardContent>
-              )}
+                )}
+              </CardContent>
             </Card>
           )}
         </>

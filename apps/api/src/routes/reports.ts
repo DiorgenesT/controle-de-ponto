@@ -1,9 +1,10 @@
 import { Hono } from 'hono'
-import { monthQuerySchema, calculateMonthlySummary } from '@ponto/shared'
-import type { TimeEntry } from '@ponto/shared'
+import { monthQuerySchema, hourBankAdjustmentSchema, calculateMonthlySummary } from '@ponto/shared'
+import type { TimeEntry, HourBankAdjustment } from '@ponto/shared'
 import type { Env } from '../lib/types'
 import type { AuthContext } from '../middleware/auth'
 import { authMiddleware, requireRole } from '../middleware/auth'
+import { getAccumulatedBeforeMonth, getAccumulatedBeforeMonthByCompany } from '../lib/hourBank'
 
 const reports = new Hono<{ Bindings: Env } & AuthContext>()
 
@@ -23,6 +24,19 @@ function rowToEntry(row: Record<string, unknown>): TimeEntry {
     workedMinutes: row.worked_minutes as number | null,
     extraMinutes: row.extra_minutes as number | null,
     missingMinutes: row.missing_minutes as number | null,
+    createdAt: row.created_at as string,
+    updatedAt: row.updated_at as string,
+  }
+}
+
+function rowToAdjustment(row: Record<string, unknown>): HourBankAdjustment {
+  return {
+    id: row.id as string,
+    employeeId: row.employee_id as string,
+    year: row.year as number,
+    month: row.month as number,
+    adjustmentMinutes: row.adjustment_minutes as number,
+    note: row.note as string | null,
     createdAt: row.created_at as string,
     updatedAt: row.updated_at as string,
   }
@@ -59,7 +73,7 @@ reports.get('/monthly', async (c) => {
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate   = `${year}-${String(month).padStart(2, '0')}-31`
 
-  const [entriesResult, prevBankRow] = await Promise.all([
+  const [entriesResult, previousAccumulated, currentAdjustmentRow] = await Promise.all([
     c.env.DB
       .prepare(
         `SELECT * FROM time_entries
@@ -68,21 +82,17 @@ reports.get('/monthly', async (c) => {
       )
       .bind(employeeId, startDate, endDate)
       .all(),
-    // Previous month's accumulated balance
+    getAccumulatedBeforeMonth(c.env.DB, employeeId, year, month),
     c.env.DB
-      .prepare(
-        `SELECT accumulated_minutes FROM hour_bank
-         WHERE employee_id = ? AND (year < ? OR (year = ? AND month < ?))
-         ORDER BY year DESC, month DESC LIMIT 1`
-      )
-      .bind(employeeId, year, year, month)
-      .first<{ accumulated_minutes: number }>(),
+      .prepare('SELECT adjustment_minutes FROM hour_bank WHERE employee_id = ? AND year = ? AND month = ? LIMIT 1')
+      .bind(employeeId, year, month)
+      .first<{ adjustment_minutes: number }>(),
   ])
 
   const entries = entriesResult.results.map(r => rowToEntry(r as Record<string, unknown>))
   const summary = calculateMonthlySummary(entries)
-  const previousAccumulated = prevBankRow?.accumulated_minutes ?? 0
-  const accumulatedMinutes = previousAccumulated + summary.balanceMinutes
+  const currentAdjustment = currentAdjustmentRow?.adjustment_minutes ?? 0
+  const accumulatedMinutes = previousAccumulated + summary.balanceMinutes + currentAdjustment
 
   return c.json({
     data: {
@@ -139,7 +149,53 @@ reports.get('/hourbank', async (c) => {
     .bind(employeeId)
     .all()
 
-  return c.json({ data: rows.results })
+  return c.json({ data: rows.results.map(r => rowToAdjustment(r as Record<string, unknown>)) })
+})
+
+// POST /reports/hourbank/adjustment
+reports.post('/hourbank/adjustment', requireRole('admin', 'manager'), async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const parsed = hourBankAdjustmentSchema.safeParse(body)
+  if (!parsed.success) {
+    return c.json({ error: 'Dados inválidos', code: 'VALIDATION_ERROR' }, 400)
+  }
+
+  const { employeeId, year, month, adjustmentMinutes, note } = parsed.data
+  const { companyId } = c.get('user')
+
+  const employee = await c.env.DB
+    .prepare('SELECT id FROM employees WHERE id = ? AND company_id = ? LIMIT 1')
+    .bind(employeeId, companyId)
+    .first()
+
+  if (!employee) return c.json({ error: 'Funcionário não encontrado', code: 'NOT_FOUND' }, 404)
+
+  if (adjustmentMinutes === 0 && !note) {
+    await c.env.DB
+      .prepare('DELETE FROM hour_bank WHERE employee_id = ? AND year = ? AND month = ?')
+      .bind(employeeId, year, month)
+      .run()
+    return c.json({ data: null })
+  }
+
+  await c.env.DB
+    .prepare(
+      `INSERT INTO hour_bank (id, employee_id, year, month, adjustment_minutes, note, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(employee_id, year, month) DO UPDATE SET
+         adjustment_minutes = excluded.adjustment_minutes,
+         note               = excluded.note,
+         updated_at         = datetime('now')`
+    )
+    .bind(crypto.randomUUID(), employeeId, year, month, adjustmentMinutes, note ?? null)
+    .run()
+
+  const row = await c.env.DB
+    .prepare('SELECT * FROM hour_bank WHERE employee_id = ? AND year = ? AND month = ? LIMIT 1')
+    .bind(employeeId, year, month)
+    .first()
+
+  return c.json({ data: rowToAdjustment(row as Record<string, unknown>) })
 })
 
 // GET /reports/dashboard?year=&month=
@@ -153,9 +209,8 @@ reports.get('/dashboard', async (c) => {
 
   type EmpRow   = { id: string; name: string; role: string; cpf: string | null; admission_date: string }
   type EntryRow = { employee_id: string; day_type: string; worked_minutes: number | null; extra_minutes: number | null; missing_minutes: number | null }
-  type BankRow  = { employee_id: string; balance_minutes: number; accumulated_minutes: number }
 
-  const [employeesResult, entriesResult, bankResult] = await Promise.all([
+  const [employeesResult, entriesResult, accumulatedBeforeMonth, currentAdjustmentsResult] = await Promise.all([
     c.env.DB
       .prepare('SELECT id, name, role, cpf, admission_date FROM employees WHERE company_id = ? AND active = 1 ORDER BY name ASC')
       .bind(companyId)
@@ -169,30 +224,24 @@ reports.get('/dashboard', async (c) => {
       )
       .bind(companyId, startDate, endDate)
       .all(),
-    // Saldo acumulado até o mês anterior (banco de horas fechado)
+    getAccumulatedBeforeMonthByCompany(c.env.DB, companyId, year, month),
     c.env.DB
       .prepare(
-        `SELECT hb.employee_id, hb.balance_minutes, hb.accumulated_minutes
+        `SELECT hb.employee_id, hb.adjustment_minutes
          FROM hour_bank hb
          JOIN employees e ON e.id = hb.employee_id
-         WHERE e.company_id = ?
-           AND (hb.year < ? OR (hb.year = ? AND hb.month < ?))
-         ORDER BY hb.year DESC, hb.month DESC`
+         WHERE e.company_id = ? AND hb.year = ? AND hb.month = ?`
       )
-      .bind(companyId, year, year, month)
+      .bind(companyId, year, month)
       .all(),
   ])
 
   const employees = employeesResult.results as EmpRow[]
   const entries   = entriesResult.results as EntryRow[]
-  const bankRows  = bankResult.results as BankRow[]
 
-  // Pega o acumulado anterior mais recente por funcionário
-  const prevAccumulated: Record<string, number> = {}
-  for (const b of bankRows) {
-    if (prevAccumulated[b.employee_id] === undefined) {
-      prevAccumulated[b.employee_id] = b.accumulated_minutes
-    }
+  const currentAdjustments: Record<string, number> = {}
+  for (const row of currentAdjustmentsResult.results as { employee_id: string; adjustment_minutes: number }[]) {
+    currentAdjustments[row.employee_id] = row.adjustment_minutes
   }
 
   type Stats = {
@@ -213,7 +262,7 @@ reports.get('/dashboard', async (c) => {
     stats[emp.id] = {
       workedDays: 0, workedMinutes: 0, extraMinutes: 0, missingMinutes: 0,
       absences: 0, medicalDays: 0, vacationDays: 0, holidays: 0, bancoHorasDays: 0,
-      prevAccumulated: prevAccumulated[emp.id] ?? 0,
+      prevAccumulated: accumulatedBeforeMonth[emp.id] ?? 0,
     }
   }
 
@@ -254,84 +303,11 @@ reports.get('/dashboard', async (c) => {
           holidays: s.holidays,
           bancoHorasDays: s.bancoHorasDays,
           monthBalance,
-          accumulatedBalance: s.prevAccumulated + monthBalance,
+          accumulatedBalance: s.prevAccumulated + monthBalance + (currentAdjustments[emp.id] ?? 0),
         }
       }),
     },
   })
-})
-
-// POST /reports/hourbank/close
-reports.post('/hourbank/close', requireRole('admin', 'manager'), async (c) => {
-  const body = await c.req.json().catch(() => null)
-  const parsed = monthQuerySchema.safeParse(body)
-  if (!parsed.success) {
-    return c.json({ error: 'Dados inválidos', code: 'VALIDATION_ERROR' }, 400)
-  }
-
-  const { employeeId, year, month } = parsed.data
-  const { companyId } = c.get('user')
-
-  const employee = await c.env.DB
-    .prepare('SELECT id FROM employees WHERE id = ? AND company_id = ? LIMIT 1')
-    .bind(employeeId, companyId)
-    .first()
-
-  if (!employee) return c.json({ error: 'Funcionário não encontrado', code: 'NOT_FOUND' }, 404)
-
-  const startDate = `${year}-${String(month).padStart(2, '0')}-01`
-  const endDate   = `${year}-${String(month).padStart(2, '0')}-31`
-
-  const [entriesResult, prevBankRow] = await Promise.all([
-    c.env.DB
-      .prepare('SELECT * FROM time_entries WHERE employee_id = ? AND entry_date >= ? AND entry_date <= ?')
-      .bind(employeeId, startDate, endDate)
-      .all(),
-    c.env.DB
-      .prepare(
-        `SELECT accumulated_minutes FROM hour_bank
-         WHERE employee_id = ? AND (year < ? OR (year = ? AND month < ?))
-         ORDER BY year DESC, month DESC LIMIT 1`
-      )
-      .bind(employeeId, year, year, month)
-      .first<{ accumulated_minutes: number }>(),
-  ])
-
-  const entries = entriesResult.results.map(r => rowToEntry(r as Record<string, unknown>))
-  const summary = calculateMonthlySummary(entries)
-  const prevAccumulated = prevBankRow?.accumulated_minutes ?? 0
-  const balanceMinutes = summary.totalExtraMinutes - summary.totalMissingMinutes
-  const accumulatedMinutes = prevAccumulated + balanceMinutes
-
-  await c.env.DB
-    .prepare(
-      `INSERT INTO hour_bank
-         (id, employee_id, year, month, total_worked_minutes, total_extra_minutes,
-          total_missing_minutes, balance_minutes, accumulated_minutes, closed, closed_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, datetime('now'), datetime('now'))
-       ON CONFLICT(employee_id, year, month) DO UPDATE SET
-         total_worked_minutes  = excluded.total_worked_minutes,
-         total_extra_minutes   = excluded.total_extra_minutes,
-         total_missing_minutes = excluded.total_missing_minutes,
-         balance_minutes       = excluded.balance_minutes,
-         accumulated_minutes   = excluded.accumulated_minutes,
-         closed                = 1,
-         closed_at             = datetime('now'),
-         updated_at            = datetime('now')`
-    )
-    .bind(
-      crypto.randomUUID(), employeeId, year, month,
-      summary.totalWorkedMinutes, summary.totalExtraMinutes,
-      summary.totalMissingMinutes, balanceMinutes, accumulatedMinutes
-    )
-    .run()
-
-  const row = await c.env.DB
-    .prepare('SELECT * FROM hour_bank WHERE employee_id = ? AND year = ? AND month = ? LIMIT 1')
-    .bind(employeeId, year, month)
-    .first()
-
-  return c.json({ data: row })
 })
 
 export default reports
