@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { format, getDaysInMonth } from 'date-fns'
 import { ptBR } from 'date-fns/locale'
-import { employeesApi, timeEntriesApi } from '@/lib/api'
+import { employeesApi, timeEntriesApi, reportsApi } from '@/lib/api'
 import { calculateDay, getDayOfWeek, isSunday, isWorkingSaturday, minutesToTime } from '@ponto/shared'
-import type { Employee, TimeEntry, DayType } from '@ponto/shared'
+import type { Employee, TimeEntry, DayType, MonthlyReport } from '@ponto/shared'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -58,6 +58,14 @@ export function TimesheetPage() {
   })
 
   const entries = (entriesData?.data ?? []) as TimeEntry[]
+
+  const { data: monthlyReportData } = useQuery({
+    queryKey: ['reports', 'monthly', selectedEmployeeId, currentYear, currentMonth],
+    queryFn: () => reportsApi.monthly(selectedEmployeeId, currentYear, currentMonth),
+    enabled: Boolean(selectedEmployeeId),
+  })
+
+  const previousMonthAccumulated = (monthlyReportData?.data as MonthlyReport | undefined)?.previousMonthAccumulated ?? 0
 
   const upsertMutation = useMutation({
     mutationFn: (data: unknown) => timeEntriesApi.upsert(data),
@@ -226,9 +234,22 @@ export function TimesheetPage() {
                           )
                         : null
 
+                      const bancoHorasWarning = isEditing && fd?.dayType === 'banco_horas' && preview
+                        ? (() => {
+                            const otherEntriesBalance = entries
+                              .filter((e) => e.entryDate !== row.date)
+                              .reduce((sum, e) => sum + (e.extraMinutes ?? 0) - (e.missingMinutes ?? 0), 0)
+                            const saldoAntes = previousMonthAccumulated + otherEntriesBalance
+                            const consumo = preview.missingMinutes
+                            return saldoAntes < consumo
+                              ? { saldoAntes, consumo, saldoDepois: saldoAntes - consumo }
+                              : null
+                          })()
+                        : null
+
                       return (
+                        <Fragment key={row.date}>
                         <tr
-                          key={row.date}
                           className={cn(
                             'border-b transition-colors',
                             (row.isSunday || row.isFreeSaturday) ? 'bg-muted/30 text-muted-foreground' : 'hover:bg-muted/20',
@@ -335,6 +356,19 @@ export function TimesheetPage() {
                             )}
                           </td>
                         </tr>
+                        {bancoHorasWarning && (
+                          <tr className="bg-destructive/5">
+                            <td colSpan={11} className="px-4 py-1.5 text-xs text-destructive">
+                              <span className="inline-flex items-center gap-1.5">
+                                <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                                Saldo insuficiente: disponível {minutesToTime(bancoHorasWarning.saldoAntes)}, este dia consome{' '}
+                                {minutesToTime(bancoHorasWarning.consumo)}. Saldo ficará{' '}
+                                {bancoHorasWarning.saldoDepois >= 0 ? '+' : ''}{minutesToTime(bancoHorasWarning.saldoDepois)}.
+                              </span>
+                            </td>
+                          </tr>
+                        )}
+                        </Fragment>
                       )
                     })}
                   </tbody>
