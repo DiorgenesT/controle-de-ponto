@@ -1,10 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types'
 
-/**
- * Accumulated hour-bank balance for `employeeId` immediately before
- * `year`/`month`, summing every time_entries balance and every manual
- * adjustment dated earlier — never depends on a "closed month" snapshot.
- */
+// Accumulated hour-bank balance for `employeeId` immediately before `year`/`month`
 export async function getAccumulatedBeforeMonth(
   db: D1Database,
   employeeId: string,
@@ -35,10 +31,7 @@ export async function getAccumulatedBeforeMonth(
   return (entriesBalance?.balance ?? 0) + (adjustmentsBalance?.total ?? 0)
 }
 
-/**
- * Same as getAccumulatedBeforeMonth, batched for every employee of a company —
- * used by the dashboard to avoid one query per employee.
- */
+// Same as getAccumulatedBeforeMonth, batched for every employee of a company
 export async function getAccumulatedBeforeMonthByCompany(
   db: D1Database,
   companyId: string,

@@ -23,6 +23,7 @@ function parseHoursInput(input: string): number | null {
   const sign = match[1] === '-' ? -1 : 1
   const hours = Number(match[2])
   const minutes = Number(match[3])
+  if (minutes > 59) return null
   return sign * (hours * 60 + minutes)
 }
 

@@ -65,7 +65,12 @@ export function TimesheetPage() {
     enabled: Boolean(selectedEmployeeId),
   })
 
-  const previousMonthAccumulated = (monthlyReportData?.data as MonthlyReport | undefined)?.previousMonthAccumulated ?? 0
+  const monthlyReport = monthlyReportData?.data as MonthlyReport | undefined
+  const previousMonthAccumulated = monthlyReport?.previousMonthAccumulated ?? 0
+  // Derived the same way /reports/monthly computes it: accumulatedMinutes = previousMonthAccumulated + balanceMinutes + currentMonthAdjustment
+  const currentMonthAdjustment = monthlyReport
+    ? monthlyReport.accumulatedMinutes - monthlyReport.previousMonthAccumulated - monthlyReport.balanceMinutes
+    : 0
 
   const upsertMutation = useMutation({
     mutationFn: (data: unknown) => timeEntriesApi.upsert(data),
@@ -239,7 +244,7 @@ export function TimesheetPage() {
                             const otherEntriesBalance = entries
                               .filter((e) => e.entryDate !== row.date)
                               .reduce((sum, e) => sum + (e.extraMinutes ?? 0) - (e.missingMinutes ?? 0), 0)
-                            const saldoAntes = previousMonthAccumulated + otherEntriesBalance
+                            const saldoAntes = previousMonthAccumulated + currentMonthAdjustment + otherEntriesBalance
                             const consumo = preview.missingMinutes
                             return saldoAntes < consumo
                               ? { saldoAntes, consumo, saldoDepois: saldoAntes - consumo }
