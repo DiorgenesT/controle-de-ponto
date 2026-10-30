@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { loginSchema } from '@ponto/shared'
 import type { z } from 'zod'
-import { CalendarClock, CircleAlert, Eye, EyeOff, FileText, ShieldCheck } from 'lucide-react'
+import { CircleAlert, Eye, EyeOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { FormField } from '@/components/ui/form-field'
@@ -17,9 +17,9 @@ import { useAuthStore } from '@/store/auth'
 type LoginForm = z.infer<typeof loginSchema>
 
 const HIGHLIGHTS = [
-  { icon: CalendarClock, text: 'Lançamento diário com cálculo automático de extras e faltas' },
-  { icon: ShieldCheck, text: 'Banco de horas acumulado mês a mês' },
-  { icon: FileText, text: 'Folha de ponto em PDF pronta para assinatura' },
+  'Lançamento diário com cálculo de extras e faltas',
+  'Banco de horas acumulado mês a mês',
+  'Folha de ponto em PDF para assinatura',
 ]
 
 export function LoginPage() {
@@ -48,53 +48,36 @@ export function LoginPage() {
   }
 
   return (
-    <div className="grid min-h-full lg:grid-cols-[1.05fr_1fr]">
+    <div className="grid min-h-full lg:grid-cols-[minmax(0,26rem)_1fr]">
       {/* Brand panel */}
-      <aside className="relative hidden overflow-hidden bg-sidebar p-10 text-sidebar-foreground lg:flex lg:flex-col">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.07]"
-          style={{
-            backgroundImage:
-              'linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)',
-            backgroundSize: '44px 44px',
-            maskImage: 'radial-gradient(ellipse at 30% 40%, black 30%, transparent 75%)',
-          }}
-        />
-        <div aria-hidden className="pointer-events-none absolute -bottom-40 -right-32 size-[28rem] rounded-full bg-orange-600/25 blur-3xl" />
-
-        <div className="relative flex items-center gap-3">
-          <BrandMark className="size-10" />
+      <aside className="hidden border-r border-sidebar-border bg-sidebar p-10 text-sidebar-foreground lg:flex lg:flex-col">
+        <div className="flex items-center gap-3">
+          <BrandMark />
           <div className="leading-tight">
-            <p className="font-semibold text-sidebar-accent-foreground">Alexandre Motos</p>
-            <p className="text-sm text-sidebar-muted">Betim · MG</p>
+            <p className="text-sm font-semibold text-sidebar-accent-foreground">Alexandre Motos</p>
+            <p className="text-xs text-sidebar-muted">Controle de ponto</p>
           </div>
         </div>
 
-        <div className="relative mt-auto max-w-md space-y-8">
-          <div className="space-y-3">
-            <h2 className="text-3xl font-semibold leading-tight tracking-tight text-sidebar-accent-foreground">
-              O ponto da oficina,
-              <br />
-              <span className="text-sidebar-primary">sem planilha.</span>
-            </h2>
-            <p className="text-[15px] leading-relaxed text-sidebar-muted">
-              Registre entradas e saídas, acompanhe o banco de horas e gere a folha mensal de cada funcionário.
-            </p>
-          </div>
-          <ul className="space-y-3">
-            {HIGHLIGHTS.map(({ icon: Icon, text }) => (
-              <li key={text} className="flex items-center gap-3 text-sm text-sidebar-foreground">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-sidebar-primary">
-                  <Icon className="size-4" />
-                </span>
+        <div className="mt-auto max-w-sm space-y-5">
+          <h2 className="text-2xl font-semibold leading-snug tracking-tight text-sidebar-accent-foreground">
+            Ponto, banco de horas e folha mensal da oficina em um só lugar.
+          </h2>
+          <ul className="space-y-2 text-sm text-sidebar-muted">
+            {HIGHLIGHTS.map((text) => (
+              <li key={text} className="flex gap-2.5">
+                <span aria-hidden className="mt-2 h-px w-3 shrink-0 bg-sidebar-muted" />
                 {text}
               </li>
             ))}
           </ul>
         </div>
 
-        <p className="relative mt-12 text-xs text-sidebar-muted/80">CNPJ 21.693.712/0001-03</p>
+        <p className="mt-12 text-xs leading-relaxed text-sidebar-muted">
+          CNPJ 21.693.712/0001-03
+          <br />
+          Av. Colet. Artur Trindade, 1488 · Jd. Alterosa · Betim, MG
+        </p>
       </aside>
 
       {/* Form */}
@@ -103,18 +86,21 @@ export function LoginPage() {
           <ThemeToggle />
         </div>
 
-        <div className="w-full max-w-[380px] animate-slide-in-up">
-          <div className="mb-8 flex flex-col items-center gap-3 text-center lg:hidden">
-            <BrandMark className="size-11" />
-            <p className="text-sm font-medium text-muted-foreground">Alexandre Motos</p>
+        <div className="w-full max-w-[360px]">
+          <div className="mb-8 flex items-center gap-3 lg:hidden">
+            <BrandMark />
+            <div className="leading-tight">
+              <p className="text-sm font-semibold text-foreground">Alexandre Motos</p>
+              <p className="text-xs text-muted-foreground">Controle de ponto</p>
+            </div>
           </div>
 
-          <div className="mb-7 space-y-1.5">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Entrar no Controle de Ponto</h1>
-            <p className="text-sm text-muted-foreground">Use seu e-mail e senha para acessar o sistema.</p>
+          <div className="mb-6 space-y-1">
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">Entrar</h1>
+            <p className="text-sm text-muted-foreground">Use seu e-mail e senha de acesso.</p>
           </div>
 
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" noValidate>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <FormField label="E-mail" htmlFor="email" error={errors.email?.message}>
               <Input
                 id="email"
@@ -157,12 +143,12 @@ export function LoginPage() {
               </Alert>
             )}
 
-            <Button type="submit" size="lg" className="w-full" loading={isSubmitting}>
+            <Button type="submit" size="lg" className="mt-2 w-full" loading={isSubmitting}>
               {isSubmitting ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
 
-          <p className="mt-8 text-center text-xs text-muted-foreground">
+          <p className="mt-6 text-xs text-muted-foreground">
             Problemas para acessar? Fale com o administrador do sistema.
           </p>
         </div>

@@ -9,7 +9,7 @@ import { authApi, companyApi, usersApi } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
-import { Building2, KeyRound, Mail, Scale, ShieldCheck, UserPlus, UserX, Users } from 'lucide-react'
+import { ShieldCheck, UserPlus, UserX } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -47,21 +47,13 @@ const ROLE_LABELS: Record<string, string> = {
   viewer:  'Visualizador',
 }
 
-const ROLE_VARIANT: Record<string, 'primary' | 'info' | 'muted'> = {
-  admin: 'primary',
-  manager: 'info',
-  viewer: 'muted',
-}
-
 function SettingsSection({
-  icon: Icon,
   title,
   description,
   action,
   children,
   className,
 }: {
-  icon: React.ElementType
   title: string
   description: string
   action?: React.ReactNode
@@ -69,16 +61,11 @@ function SettingsSection({
   className?: string
 }) {
   return (
-    <section className={cn('overflow-hidden rounded-xl border bg-card shadow-xs', className)}>
-      <header className="flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
-        <div className="flex items-start gap-3">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/60 text-muted-foreground">
-            <Icon className="size-4" aria-hidden />
-          </div>
-          <div>
-            <h2 className="text-[15px] font-semibold leading-tight text-foreground">{title}</h2>
-            <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>
-          </div>
+    <section className={cn('overflow-hidden rounded-lg border bg-card', className)}>
+      <header className="flex flex-col gap-3 border-b px-5 py-3.5 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div>
+          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          <p className="mt-0.5 text-[13px] text-muted-foreground">{description}</p>
         </div>
         {action}
       </header>
@@ -197,28 +184,23 @@ export function SettingsPage() {
       <PageHeader title="Configurações" description="Gerencie seu perfil, a empresa e quem acessa o sistema." />
 
       {/* ── Minha conta ─────────────────────────────────────────────────────── */}
-      <section className="relative overflow-hidden rounded-xl border bg-card shadow-xs">
-        <div aria-hidden className="h-16 bg-gradient-to-r from-zinc-900 via-zinc-800 to-orange-800 dark:from-zinc-950 dark:via-zinc-900 dark:to-orange-950" />
-        <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-          <div className="flex items-end gap-4">
-            <UserAvatar name={user?.name ?? '?'} className="-mt-8 size-16 text-base ring-4 ring-card" />
-            <div className="min-w-0 pb-0.5">
-              <p className="truncate text-lg font-semibold leading-tight text-foreground">{user?.name}</p>
-              <p className="mt-0.5 flex items-center gap-1.5 truncate text-sm text-muted-foreground">
-                <Mail className="size-3.5 shrink-0" aria-hidden />
-                {user?.email}
-              </p>
+      <section className="rounded-lg border bg-card">
+        <div className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <UserAvatar name={user?.name ?? '?'} className="size-10 text-sm" />
+            <div className="min-w-0">
+              <p className="truncate font-semibold text-foreground">{user?.name}</p>
+              <p className="truncate text-[13px] text-muted-foreground">{user?.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            Nível de acesso
-            <Badge variant={ROLE_VARIANT[user?.role ?? ''] ?? 'muted'} shape="pill">{roleLabel}</Badge>
-          </div>
+          <p className="text-[13px] text-muted-foreground">
+            Nível de acesso: <span className="font-medium text-foreground">{roleLabel}</span>
+          </p>
         </div>
       </section>
 
       {/* ── Alterar senha ───────────────────────────────────────────────────── */}
-      <SettingsSection icon={KeyRound} title="Alterar senha" description="Use ao menos 8 caracteres, com letra maiúscula e número.">
+      <SettingsSection title="Alterar senha" description="Use ao menos 8 caracteres, com letra maiúscula e número.">
         <form onSubmit={pwForm.handleSubmit((d) => changePwMutation.mutate(d))} className="space-y-5 p-5 sm:p-6">
           <div className="grid gap-5 sm:grid-cols-2">
             <FormField label="Senha atual" htmlFor="currentPassword" error={pwErrors.currentPassword?.message} className="sm:col-span-2 sm:max-w-[calc(50%-0.625rem)]">
@@ -241,7 +223,7 @@ export function SettingsPage() {
 
       {/* ── Dados da empresa (admin) ────────────────────────────────────────── */}
       {isAdmin && (
-        <SettingsSection icon={Building2} title="Dados da empresa" description="Nome, CNPJ e endereço exibidos no cabeçalho da folha de ponto.">
+        <SettingsSection title="Dados da empresa" description="Nome, CNPJ e endereço exibidos no cabeçalho da folha de ponto.">
           {isLoadingCompany ? (
             <div className="grid gap-5 p-5 sm:grid-cols-2 sm:p-6">
               {[...Array(4)].map((_, i) => (
@@ -279,7 +261,7 @@ export function SettingsPage() {
 
       {/* ── Banco de horas (admin) ──────────────────────────────────────────── */}
       {isAdmin && (
-        <SettingsSection icon={Scale} title="Banco de horas" description="Como as faltas novas são acertadas por padrão.">
+        <SettingsSection title="Banco de horas" description="Como as faltas novas são acertadas por padrão.">
           {isLoadingCompany ? (
             <div className="grid gap-3 p-5 sm:grid-cols-2 sm:p-6">
               <Skeleton className="h-20" />
@@ -303,9 +285,9 @@ export function SettingsPage() {
                     <label
                       key={opt.value}
                       className={cn(
-                        'flex cursor-pointer flex-col gap-0.5 rounded-lg border bg-card px-3.5 py-3 transition-colors hover:bg-accent/50',
+                        'flex cursor-pointer flex-col gap-0.5 rounded-md border bg-card px-3.5 py-3 transition-colors hover:bg-accent/50',
                         'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background',
-                        absenceDefault === opt.value && 'border-primary bg-primary-soft hover:bg-primary-soft'
+                        absenceDefault === opt.value && 'border-primary'
                       )}
                     >
                       <input
@@ -344,7 +326,6 @@ export function SettingsPage() {
       {/* ── Usuários do sistema (admin) ─────────────────────────────────────── */}
       {isAdmin && (
         <SettingsSection
-          icon={Users}
           title="Usuários do sistema"
           description="Quem pode acessar e o que cada um pode fazer."
           action={
@@ -385,7 +366,7 @@ export function SettingsPage() {
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       {inactive && <Badge variant="outline" shape="pill">Inativo</Badge>}
-                      <Badge variant={ROLE_VARIANT[u.role] ?? 'muted'} shape="pill" className="hidden sm:inline-flex">
+                      <Badge variant="outline" className="hidden sm:inline-flex">
                         {ROLE_LABELS[u.role] ?? u.role}
                       </Badge>
                     </div>
@@ -393,7 +374,7 @@ export function SettingsPage() {
                       <Button
                         size="icon-sm"
                         variant="ghost"
-                        className="shrink-0 text-muted-foreground hover:bg-destructive-soft hover:text-destructive-soft-foreground"
+                        className="shrink-0 text-muted-foreground hover:text-destructive-soft-foreground"
                         aria-label={`Desativar ${u.name}`}
                         title="Desativar usuário"
                         onClick={() => setUserToDeactivate(u)}
@@ -440,7 +421,7 @@ export function SettingsPage() {
             <FormField label="Senha" htmlFor="newUserPassword" required error={userErrors.password?.message}>
               <Input id="newUserPassword" type="password" autoComplete="new-password" placeholder="Mín. 8, 1 maiúscula, 1 número" aria-invalid={!!userErrors.password} {...createUserForm.register('password')} />
             </FormField>
-            <div className="flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground sm:col-span-2">
+            <div className="flex items-start gap-2 rounded-md border px-3 py-2.5 text-xs text-muted-foreground sm:col-span-2">
               <ShieldCheck className="mt-px size-3.5 shrink-0" aria-hidden />
               <span>
                 <strong className="font-medium text-foreground">Gerente</strong> também cadastra e edita funcionários;{' '}

@@ -1,75 +1,53 @@
 import * as React from 'react'
-import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 
-const iconTone = cva('flex size-10 shrink-0 items-center justify-center rounded-lg border [&_svg]:size-5', {
-  variants: {
-    tone: {
-      default: 'border-border bg-muted text-muted-foreground',
-      primary: 'border-primary-soft-border bg-primary-soft text-primary-soft-foreground',
-      success: 'border-success-soft-border bg-success-soft text-success-soft-foreground',
-      warning: 'border-warning-soft-border bg-warning-soft text-warning-soft-foreground',
-      destructive: 'border-destructive-soft-border bg-destructive-soft text-destructive-soft-foreground',
-      info: 'border-info-soft-border bg-info-soft text-info-soft-foreground',
-      special: 'border-special-soft-border bg-special-soft text-special-soft-foreground',
-    },
-  },
-  defaultVariants: { tone: 'default' },
-})
+type Tone = 'default' | 'success' | 'destructive'
 
-const valueTone: Record<string, string> = {
+// Only the number is colored, and only when the sign carries meaning.
+const valueTone: Record<Tone, string> = {
   default: 'text-foreground',
-  primary: 'text-primary-soft-foreground',
   success: 'text-success-soft-foreground',
-  warning: 'text-warning-soft-foreground',
   destructive: 'text-destructive-soft-foreground',
-  info: 'text-info-soft-foreground',
-  special: 'text-special-soft-foreground',
 }
 
-export interface StatCardProps
-  extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'>,
-    VariantProps<typeof iconTone> {
+/** Bordered strip of KPI cells separated by 1px rules (no floating cards). */
+function StatGroup({ className, ...props }: React.HTMLAttributes<HTMLElement>) {
+  return (
+    <section
+      className={cn('grid gap-px overflow-hidden rounded-lg border bg-border', className)}
+      {...props}
+    />
+  )
+}
+
+export interface StatCardProps extends Omit<React.HTMLAttributes<HTMLDivElement>, 'title'> {
   label: React.ReactNode
   value: React.ReactNode
-  icon?: React.ElementType
-  /** Secondary line under the value (e.g. "+2 vs mês anterior"). */
+  /** Secondary line under the value (e.g. "Anterior −06:53"). */
   hint?: React.ReactNode
+  tone?: Tone
   loading?: boolean
-  /** Colors the value with the tone too (default: only the icon is tinted). */
-  emphasize?: boolean
 }
 
-/** KPI tile: label, big tabular value, optional icon and hint. */
-function StatCard({ label, value, icon: Icon, hint, tone, loading, emphasize, className, ...props }: StatCardProps) {
+/** Typographic minus (U+2212) for display: same width as "+", reads better than a hyphen. */
+function displayValue(value: React.ReactNode) {
+  return typeof value === 'string' ? value.replace(/^-/, '\u2212') : value
+}
+
+/** KPI cell: small label, large tabular value, optional hint. Meant to live inside StatGroup. */
+function StatCard({ label, value, hint, tone = 'default', loading, className, ...props }: StatCardProps) {
   return (
-    <div className={cn('rounded-xl border bg-card p-4 shadow-xs sm:p-5', className)} {...props}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 space-y-1.5">
-          <p className="truncate text-[12px] font-medium text-muted-foreground">{label}</p>
-          {loading ? (
-            <Skeleton className="h-7 w-16" />
-          ) : (
-            <p
-              className={cn(
-                'text-2xl font-semibold leading-none tracking-tight tabular-nums',
-                emphasize ? valueTone[tone ?? 'default'] : 'text-foreground'
-              )}
-            >
-              {value}
-            </p>
-          )}
-          {hint && !loading && <p className="text-xs text-muted-foreground">{hint}</p>}
-        </div>
-        {Icon && (
-          <div className={iconTone({ tone })}>
-            <Icon aria-hidden />
-          </div>
-        )}
-      </div>
+    <div className={cn('min-w-0 bg-card px-4 py-3', className)} {...props}>
+      <p className="truncate text-xs text-muted-foreground">{label}</p>
+      {loading ? (
+        <Skeleton className="mt-1.5 h-6 w-16" />
+      ) : (
+        <p className={cn('mt-1 text-xl font-semibold leading-tight tabular-nums', valueTone[tone])}>{displayValue(value)}</p>
+      )}
+      {hint && !loading && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
     </div>
   )
 }
 
-export { StatCard }
+export { StatGroup, StatCard }

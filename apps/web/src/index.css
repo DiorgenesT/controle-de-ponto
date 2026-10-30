@@ -5,23 +5,24 @@
 
 /*
  * Design tokens
- * Neutrals: cool zinc. Primary: burnt orange (motorcycle/workshop identity),
- * tuned for WCAG AA — white text on primary ≥ 4.5:1 in light mode; dark text on
- * the brighter primary in dark mode.
- * Status colors come in solid (bg-success / text-success-foreground) and soft
- * (bg-success-soft / text-success-soft-foreground / border-success-soft-border) flavors.
+ * Neutrals: cool zinc; hierarchy comes from type, spacing and 1px borders, not color.
+ * Primary: burnt orange (workshop identity), used sparingly — primary button, links,
+ * focus. White text on primary ≥ 4.5:1 in light mode; dark text on the brighter
+ * primary in dark mode.
+ * Status colors carry meaning only (balance +/−, absences); prefer the *-soft-foreground
+ * text tokens over tinted backgrounds.
  */
 :root {
-  --background: oklch(0.982 0.002 286);
+  --background: oklch(0.985 0.001 286);
   --foreground: oklch(0.21 0.006 285.885);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.006 285.885);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.006 285.885);
 
-  --primary: oklch(0.553 0.195 38.402);
+  --primary: oklch(0.55 0.17 41);
   --primary-foreground: oklch(1 0 0);
-  --primary-soft: oklch(0.98 0.016 73.684);
+  --primary-soft: oklch(0.975 0.012 60);
   --primary-soft-foreground: oklch(0.47 0.157 37.304);
   --primary-soft-border: oklch(0.901 0.076 70.697);
 
@@ -32,9 +33,9 @@
   --accent: oklch(0.945 0.003 286);
   --accent-foreground: oklch(0.21 0.006 285.885);
 
-  --border: oklch(0.915 0.004 286.32);
-  --input: oklch(0.87 0.006 286.286);
-  --ring: oklch(0.553 0.195 38.402);
+  --border: oklch(0.912 0.004 286.32);
+  --input: oklch(0.86 0.006 286.286);
+  --ring: oklch(0.55 0.17 41);
 
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
@@ -67,30 +68,30 @@
   --special-soft-foreground: oklch(0.432 0.232 292.759);
   --special-soft-border: oklch(0.894 0.057 293.283);
 
-  /* Sidebar stays dark in both themes */
-  --sidebar: oklch(0.17 0.006 285.885);
-  --sidebar-foreground: oklch(0.871 0.006 286.286);
-  --sidebar-muted: oklch(0.705 0.015 286.067);
-  --sidebar-accent: oklch(0.27 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-primary: oklch(0.705 0.213 47.604);
-  --sidebar-primary-foreground: oklch(0.141 0.005 285.823);
+  /* Sidebar follows the theme: a slightly recessed neutral panel */
+  --sidebar: oklch(0.97 0.002 286);
+  --sidebar-foreground: oklch(0.3 0.006 285.885);
+  --sidebar-muted: oklch(0.47 0.014 286);
+  --sidebar-accent: oklch(0.925 0.004 286);
+  --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
+  --sidebar-border: oklch(0.912 0.004 286.32);
+  --sidebar-primary: oklch(0.55 0.17 41);
+  --sidebar-primary-foreground: oklch(1 0 0);
 
   --shadow-color: 240 6% 10%;
 }
 
 .dark {
-  --background: oklch(0.155 0.004 286);
+  --background: oklch(0.165 0.004 286);
   --foreground: oklch(0.967 0.002 286);
-  --card: oklch(0.195 0.005 286);
+  --card: oklch(0.19 0.004 286);
   --card-foreground: oklch(0.967 0.002 286);
   --popover: oklch(0.215 0.006 286);
   --popover-foreground: oklch(0.967 0.002 286);
 
-  --primary: oklch(0.705 0.213 47.604);
+  --primary: oklch(0.72 0.16 50);
   --primary-foreground: oklch(0.141 0.005 285.823);
-  --primary-soft: oklch(0.705 0.213 47.604 / 14%);
+  --primary-soft: oklch(0.72 0.16 50 / 12%);
   --primary-soft-foreground: oklch(0.837 0.128 66.29);
   --primary-soft-border: oklch(0.705 0.213 47.604 / 30%);
 
@@ -101,9 +102,9 @@
   --accent: oklch(0.27 0.006 286);
   --accent-foreground: oklch(0.967 0.002 286);
 
-  --border: oklch(1 0 0 / 9%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.705 0.213 47.604);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 16%);
+  --ring: oklch(0.72 0.16 50);
 
   --destructive: oklch(0.577 0.245 27.325);
   --destructive-foreground: oklch(1 0 0);
@@ -135,8 +136,14 @@
   --special-soft-foreground: oklch(0.811 0.111 293.571);
   --special-soft-border: oklch(0.606 0.25 292.717 / 32%);
 
-  --sidebar: oklch(0.13 0.004 286);
-  --sidebar-border: oklch(1 0 0 / 7%);
+  --sidebar: oklch(0.145 0.004 286);
+  --sidebar-foreground: oklch(0.87 0.006 286);
+  --sidebar-muted: oklch(0.7 0.014 286);
+  --sidebar-accent: oklch(0.235 0.005 286);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-primary: oklch(0.72 0.16 50);
+  --sidebar-primary-foreground: oklch(0.141 0.005 285.823);
 
   --shadow-color: 0 0% 0%;
   color-scheme: dark;
@@ -208,18 +215,19 @@
   --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
-  --radius: 0.625rem;
+  --radius: 0.375rem;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --radius-2xl: calc(var(--radius) + 8px);
 
-  --shadow-xs: 0 1px 2px 0 hsl(var(--shadow-color) / 0.05);
-  --shadow-sm: 0 1px 2px 0 hsl(var(--shadow-color) / 0.06), 0 1px 3px 0 hsl(var(--shadow-color) / 0.08);
-  --shadow-md: 0 2px 4px -1px hsl(var(--shadow-color) / 0.06), 0 4px 12px -2px hsl(var(--shadow-color) / 0.08);
-  --shadow-lg: 0 4px 6px -2px hsl(var(--shadow-color) / 0.05), 0 12px 24px -4px hsl(var(--shadow-color) / 0.12);
-  --shadow-xl: 0 8px 12px -4px hsl(var(--shadow-color) / 0.06), 0 24px 48px -12px hsl(var(--shadow-color) / 0.2);
+  /* Surfaces are flat; only floating layers (menus, dialogs, toasts) get one soft shadow. */
+  --shadow-xs: 0 0 #0000;
+  --shadow-sm: 0 0 #0000;
+  --shadow-md: 0 4px 12px -2px hsl(var(--shadow-color) / 0.12);
+  --shadow-lg: 0 4px 12px -2px hsl(var(--shadow-color) / 0.12);
+  --shadow-xl: 0 12px 32px -8px hsl(var(--shadow-color) / 0.25);
 
 }
 
@@ -296,17 +304,6 @@
 }
 
 @layer utilities {
-  /* Legacy elevation helpers — still referenced by pages not yet restyled */
-  .shadow-card {
-    box-shadow: 0 0 0 1px var(--color-border), var(--shadow-sm);
-  }
-  .shadow-card-hover {
-    box-shadow: 0 0 0 1px var(--color-border), var(--shadow-lg);
-  }
-  .shadow-kpi {
-    box-shadow: 0 0 0 1px var(--color-border), var(--shadow-xs);
-  }
-
   .scrollbar-thin {
     scrollbar-width: thin;
     scrollbar-color: var(--color-border) transparent;

@@ -1,17 +1,16 @@
-import { Gauge } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-/** Brand square: speedometer glyph on the primary orange. */
+/** Flat brand mark: "AM" monogram on solid primary. */
 export function BrandMark({ className }: { className?: string }) {
   return (
     <div
       aria-hidden
       className={cn(
-        'flex size-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-orange-500 to-orange-700 text-white shadow-sm ring-1 ring-inset ring-white/15',
+        'flex size-8 shrink-0 select-none items-center justify-center rounded-md bg-primary text-[13px] font-bold tracking-tight text-primary-foreground',
         className
       )}
     >
-      <Gauge className="size-[18px]" strokeWidth={2.25} />
+      AM
     </div>
   )
 }

@@ -3,15 +3,16 @@ import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
 const alertVariants = cva(
-  'relative flex w-full gap-3 rounded-xl border px-4 py-3 text-sm [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0',
+  'relative flex w-full gap-3 rounded-lg border bg-card px-4 py-3 text-sm text-foreground [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0',
   {
     variants: {
+      // Neutral surface; only the icon (and text, for errors) carries the tone.
       variant: {
-        default: 'bg-card text-foreground [&>svg]:text-muted-foreground',
-        info: 'border-info-soft-border bg-info-soft text-info-soft-foreground',
-        success: 'border-success-soft-border bg-success-soft text-success-soft-foreground',
-        warning: 'border-warning-soft-border bg-warning-soft text-warning-soft-foreground',
-        destructive: 'border-destructive-soft-border bg-destructive-soft text-destructive-soft-foreground',
+        default: '[&>svg]:text-muted-foreground',
+        info: '[&>svg]:text-muted-foreground',
+        success: '[&>svg]:text-success-soft-foreground',
+        warning: '[&>svg]:text-warning-soft-foreground',
+        destructive: 'border-destructive-soft-border text-destructive-soft-foreground',
       },
     },
     defaultVariants: { variant: 'default' },
@@ -31,7 +32,7 @@ function AlertTitle({ className, ...props }: React.HTMLAttributes<HTMLParagraphE
 }
 
 function AlertDescription({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('text-[13px] leading-relaxed opacity-95', className)} {...props} />
+  return <div className={cn('text-[13px] leading-relaxed', className)} {...props} />
 }
 
 export { Alert, AlertTitle, AlertDescription }

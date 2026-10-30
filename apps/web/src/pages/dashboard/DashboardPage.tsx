@@ -1,23 +1,18 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
-import {
-  AlertTriangle, ArrowRight, CircleAlert, CircleCheck, Clock, FileText, RotateCw,
-  Search, Stethoscope, TrendingDown, TrendingUp, Umbrella, Users, WifiOff,
-} from 'lucide-react'
+import { ChevronRight, Clock, FileText, RotateCw, Search, Users, WifiOff } from 'lucide-react'
 import { minutesToTime } from '@ponto/shared'
 import { reportsApi } from '@/lib/api'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { StatCard } from '@/components/ui/stat-card'
+import { StatCard, StatGroup } from '@/components/ui/stat-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { MonthSwitcher, MONTHS } from '@/components/ui/month-switcher'
-import { UserAvatar } from '@/components/ui/avatar'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 
 interface EmpStat {
   id: string; name: string; role: string
@@ -37,10 +32,10 @@ function statusOf(e: EmpStat): Status {
   return 'ok'
 }
 
-const STATUS_META: Record<Status, { label: string; variant: 'destructive' | 'warning' | 'success'; bar: string }> = {
-  danger: { label: 'Pendências', variant: 'destructive', bar: 'bg-destructive' },
-  warning: { label: 'Atenção', variant: 'warning', bar: 'bg-warning' },
-  ok: { label: 'Em dia', variant: 'success', bar: 'bg-success' },
+const STATUS_META: Record<Status, { label: string; dot: string }> = {
+  danger: { label: 'Pendência', dot: 'bg-destructive' },
+  warning: { label: 'Atenção', dot: 'bg-warning' },
+  ok: { label: 'Em dia', dot: 'bg-border' },
 }
 
 function signedTime(minutes: number) {
@@ -54,167 +49,143 @@ function balanceTone(minutes: number) {
   return 'text-muted-foreground'
 }
 
-function plural(n: number, word: string) {
-  return `${n} ${word}${n === 1 ? '' : 's'}`
+const Dash = () => <span className="text-muted-foreground/60">—</span>
+
+function Count({ n, danger }: { n: number; danger?: boolean }) {
+  if (n === 0) return <Dash />
+  return <span className={cn(danger && 'font-medium text-destructive-soft-foreground')}>{n}</span>
 }
 
-// ─── Skeleton ─────────────────────────────────────────────────────────────────
-
-function EmployeeCardSkeleton() {
-  return (
-    <div className="rounded-xl border bg-card p-5 shadow-xs">
-      <div className="flex items-center gap-3">
-        <Skeleton className="size-10 rounded-full" />
-        <div className="flex-1 space-y-2">
-          <Skeleton className="h-3.5 w-2/3" />
-          <Skeleton className="h-3 w-1/3" />
-        </div>
-        <Skeleton className="h-5 w-16 rounded-full" />
-      </div>
-      <div className="mt-5 grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="space-y-2 bg-card p-3">
-            <Skeleton className="h-2.5 w-16" />
-            <Skeleton className="h-5 w-14" />
-          </div>
-        ))}
-      </div>
-      <Skeleton className="mt-4 h-8 w-full" />
-    </div>
-  )
-}
-
-// ─── Employee Card ────────────────────────────────────────────────────────────
-
-function Metric({ label, children, className }: { label: string; children: React.ReactNode; className?: string }) {
-  return (
-    <div className={cn('bg-card px-3.5 py-3', className)}>
-      <p className="text-[11px] font-medium text-muted-foreground">{label}</p>
-      <div className="mt-1 text-[17px] font-semibold leading-none tabular-nums">{children}</div>
-    </div>
-  )
-}
-
-function EmployeeCard({ emp, month, year }: { emp: EmpStat; month: number; year: number }) {
-  const status = statusOf(emp)
+function StatusLabel({ status }: { status: Status }) {
   const meta = STATUS_META[status]
-  const totalFaltas = emp.absences + emp.medicalDays
-  const hasEvents = totalFaltas > 0 || emp.vacationDays > 0 || emp.extraMinutes > 0
-
   return (
-    <article className="group relative flex flex-col overflow-hidden rounded-xl border bg-card shadow-xs transition-shadow hover:shadow-md">
-      <span aria-hidden className={cn('absolute inset-y-0 left-0 w-[3px]', meta.bar)} />
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap text-[13px] text-muted-foreground">
+      <span aria-hidden className={cn('size-1.5 rounded-full', meta.dot)} />
+      {meta.label}
+    </span>
+  )
+}
 
-      <div className="flex flex-1 flex-col gap-4 p-5">
-        <header className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <UserAvatar name={emp.name} className="size-10" />
-            <div className="min-w-0">
-              <h3 className="truncate text-[14px] font-semibold leading-tight text-foreground">{emp.name}</h3>
-              <p className="mt-0.5 truncate text-[12px] text-muted-foreground">{emp.role || '—'}</p>
-            </div>
-          </div>
-          <Badge variant={meta.variant} shape="pill" dot className="shrink-0">
-            {meta.label}
-          </Badge>
-        </header>
+// ─── Team table (desktop) ─────────────────────────────────────────────────────
 
-        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border bg-border">
-          <Metric label="Dias trabalhados">
-            {emp.workedDays}
-            <span className="ml-1 text-[11px] font-normal text-muted-foreground">dias</span>
-          </Metric>
-          <Metric label="Horas trabalhadas">
-            {emp.workedMinutes > 0 ? minutesToTime(emp.workedMinutes) : <span className="text-muted-foreground">—</span>}
-          </Metric>
-          <Metric label="Saldo do mês">
-            <span className={cn('inline-flex items-center gap-1', balanceTone(emp.monthBalance))}>
-              {emp.monthBalance > 0 && <TrendingUp className="size-3.5" aria-hidden />}
-              {emp.monthBalance < 0 && <TrendingDown className="size-3.5" aria-hidden />}
-              {emp.monthBalance === 0 ? '—' : signedTime(emp.monthBalance)}
-            </span>
-          </Metric>
-          <Metric label="Banco acumulado">
-            <span className={balanceTone(emp.accumulatedBalance)}>
-              {emp.accumulatedBalance === 0 ? '—' : signedTime(emp.accumulatedBalance)}
-            </span>
-          </Metric>
-        </div>
+const num = 'text-right tabular-nums'
 
-        {!hasEvents ? (
-          emp.workedDays > 0 ? (
-            <p className="flex items-center gap-2 text-[13px] font-medium text-success-soft-foreground">
-              <CircleCheck className="size-4 shrink-0" aria-hidden />
-              Sem ocorrências neste mês
-            </p>
-          ) : (
-            <p className="text-[13px] text-muted-foreground">Nenhum lançamento registrado</p>
-          )
-        ) : (
-          <div className="space-y-2.5">
-            {totalFaltas > 0 && (
-              <div
-                className={cn(
-                  'flex items-center justify-between gap-3 rounded-lg border px-3 py-2.5',
-                  emp.absences > 0
-                    ? 'border-destructive-soft-border bg-destructive-soft'
-                    : 'border-warning-soft-border bg-warning-soft'
-                )}
-              >
-                <span
-                  className={cn(
-                    'flex items-center gap-1.5 text-[13px] font-semibold',
-                    emp.absences > 0 ? 'text-destructive-soft-foreground' : 'text-warning-soft-foreground'
+function TeamTable({ rows, loading }: { rows: EmpStat[]; loading: boolean }) {
+  return (
+    <Table className="min-w-[880px]">
+      <TableHeader>
+        <TableRow className="hover:bg-transparent">
+          <TableHead>Funcionário</TableHead>
+          <TableHead>Situação</TableHead>
+          <TableHead className="text-right">Dias</TableHead>
+          <TableHead className="text-right">Horas trab.</TableHead>
+          <TableHead className="text-right">Extras</TableHead>
+          <TableHead className="text-right">Faltas</TableHead>
+          <TableHead className="text-right">Atestados</TableHead>
+          <TableHead className="text-right">Férias</TableHead>
+          <TableHead className="text-right">Saldo do mês</TableHead>
+          <TableHead className="text-right">Acumulado</TableHead>
+          <TableHead className="w-10"><span className="sr-only">Abrir</span></TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {loading
+          ? [...Array(6)].map((_, i) => (
+              <TableRow key={i}>
+                <TableCell colSpan={11}><Skeleton className="h-5 w-full" /></TableCell>
+              </TableRow>
+            ))
+          : rows.map((emp) => (
+              <TableRow key={emp.id} className="group">
+                <TableCell className="max-w-[16rem]">
+                  <Link
+                    to={`/timesheet?employee=${emp.id}`}
+                    className="block truncate font-medium text-foreground underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    {emp.name}
+                  </Link>
+                  <p className="truncate text-xs text-muted-foreground">{emp.role || '—'}</p>
+                </TableCell>
+                <TableCell><StatusLabel status={statusOf(emp)} /></TableCell>
+                <TableCell className={num}>{emp.workedDays || <Dash />}</TableCell>
+                <TableCell className={num}>{emp.workedMinutes > 0 ? minutesToTime(emp.workedMinutes) : <Dash />}</TableCell>
+                <TableCell className={num}>{emp.extraMinutes > 0 ? `+${minutesToTime(emp.extraMinutes)}` : <Dash />}</TableCell>
+                <TableCell className={num}><Count n={emp.absences} danger /></TableCell>
+                <TableCell className={num}><Count n={emp.medicalDays} /></TableCell>
+                <TableCell className={num}><Count n={emp.vacationDays} /></TableCell>
+                <TableCell className={cn(num, 'font-medium', balanceTone(emp.monthBalance))}>
+                  {emp.monthBalance === 0 ? '00:00' : signedTime(emp.monthBalance)}
+                </TableCell>
+                <TableCell className={cn(num, 'font-medium', balanceTone(emp.accumulatedBalance))}>
+                  {emp.accumulatedBalance === 0 ? '00:00' : signedTime(emp.accumulatedBalance)}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link
+                    to={`/timesheet?employee=${emp.id}`}
+                    aria-label={`Ver ponto de ${emp.name}`}
+                    className="inline-flex size-7 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  >
+                    <ChevronRight className="size-4" aria-hidden />
+                  </Link>
+                </TableCell>
+              </TableRow>
+            ))}
+      </TableBody>
+    </Table>
+  )
+}
+
+// ─── Team list (mobile) ───────────────────────────────────────────────────────
+
+function TeamList({ rows, loading }: { rows: EmpStat[]; loading: boolean }) {
+  if (loading) {
+    return (
+      <ul className="divide-y">
+        {[...Array(6)].map((_, i) => (
+          <li key={i} className="space-y-2 px-4 py-3">
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-3 w-1/2" />
+          </li>
+        ))}
+      </ul>
+    )
+  }
+  return (
+    <ul className="divide-y">
+      {rows.map((emp) => {
+        const details = [
+          `${emp.workedDays} dias`,
+          emp.absences > 0 && `${emp.absences} falta${emp.absences === 1 ? '' : 's'}`,
+          emp.medicalDays > 0 && `${emp.medicalDays} atestado${emp.medicalDays === 1 ? '' : 's'}`,
+          emp.vacationDays > 0 && `${emp.vacationDays} dia${emp.vacationDays === 1 ? '' : 's'} de férias`,
+        ].filter(Boolean)
+        return (
+          <li key={emp.id}>
+            <Link
+              to={`/timesheet?employee=${emp.id}`}
+              className="flex items-center gap-3 px-4 py-3 transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="flex items-center gap-2 truncate text-sm font-medium text-foreground">
+                  <span className="truncate">{emp.name}</span>
+                  {statusOf(emp) !== 'ok' && (
+                    <span aria-hidden className={cn('size-1.5 shrink-0 rounded-full', STATUS_META[statusOf(emp)].dot)} />
                   )}
-                >
-                  <AlertTriangle className="size-3.5" aria-hidden />
-                  {plural(totalFaltas, 'falta')}
-                </span>
-                <span className="flex items-center gap-3 text-[12px] text-muted-foreground">
-                  <span>
-                    <strong className={cn('font-semibold', emp.absences > 0 && 'text-destructive-soft-foreground')}>
-                      {emp.absences}
-                    </strong>{' '}
-                    sem justif.
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Stethoscope className="size-3" aria-hidden />
-                    <strong className={cn('font-semibold', emp.medicalDays > 0 && 'text-info-soft-foreground')}>
-                      {emp.medicalDays}
-                    </strong>{' '}
-                    atestado
-                  </span>
-                </span>
+                </p>
+                <p className="truncate text-xs text-muted-foreground">{details.join(' · ')}</p>
               </div>
-            )}
-            {(emp.vacationDays > 0 || emp.extraMinutes > 0) && (
-              <div className="flex flex-wrap gap-1.5">
-                {emp.vacationDays > 0 && (
-                  <Badge variant="special" shape="pill">
-                    <Umbrella />
-                    {plural(emp.vacationDays, 'dia')} de férias
-                  </Badge>
-                )}
-                {emp.extraMinutes > 0 && (
-                  <Badge variant="success" shape="pill" className="tabular-nums">
-                    <TrendingUp />+{minutesToTime(emp.extraMinutes)} extras
-                  </Badge>
-                )}
+              <div className="shrink-0 text-right tabular-nums">
+                <p className={cn('text-sm font-medium', balanceTone(emp.monthBalance))}>{signedTime(emp.monthBalance)}</p>
+                <p className="text-xs text-muted-foreground">
+                  acum. <span className={balanceTone(emp.accumulatedBalance)}>{signedTime(emp.accumulatedBalance)}</span>
+                </p>
               </div>
-            )}
-          </div>
-        )}
-      </div>
-
-      <Link
-        to={`/timesheet?employee=${emp.id}`}
-        className="flex items-center gap-2 border-t px-5 py-3 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted/50 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-      >
-        <Clock className="size-3.5" aria-hidden />
-        Ver ponto de {MONTHS[month - 1]}/{year}
-        <ArrowRight className="ml-auto size-3.5 -translate-x-1 opacity-0 transition-all group-hover:translate-x-0 group-hover:opacity-100" aria-hidden />
-      </Link>
-    </article>
+              <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+            </Link>
+          </li>
+        )
+      })}
+    </ul>
   )
 }
 
@@ -263,7 +234,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Dashboard"
-        description={`Visão gerencial da equipe · ${MONTHS[month - 1]} de ${year}`}
+        description={`Equipe em ${MONTHS[month - 1]} de ${year}`}
         actions={
           <>
             <Button asChild variant="outline">
@@ -276,65 +247,36 @@ export function DashboardPage() {
         }
       />
 
-      <section aria-label="Indicadores do mês" className="grid grid-cols-2 gap-3 lg:grid-cols-4 lg:gap-4">
-        <StatCard label="Funcionários ativos" value={dash?.totalEmployees ?? 0} icon={Users} tone="primary" loading={isLoading} />
+      <StatGroup aria-label="Indicadores do mês" className="grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Funcionários ativos" value={dash?.totalEmployees ?? 0} loading={isLoading} />
         <StatCard
           label="Com pendências"
           value={withPending}
-          icon={CircleAlert}
           tone={withPending > 0 ? 'destructive' : 'default'}
-          emphasize={withPending > 0}
+          hint="Falta sem justificativa ou saldo negativo"
           loading={isLoading}
         />
-        <StatCard
-          label="Faltas no mês"
-          value={totalAbs}
-          icon={AlertTriangle}
-          tone={totalAbs > 0 ? 'warning' : 'default'}
-          emphasize={totalAbs > 0}
-          loading={isLoading}
-        />
-        <StatCard
-          label="Atestados"
-          value={totalMed}
-          icon={Stethoscope}
-          tone={totalMed > 0 ? 'info' : 'default'}
-          emphasize={totalMed > 0}
-          loading={isLoading}
-        />
-      </section>
+        <StatCard label="Faltas no mês" value={totalAbs} tone={totalAbs > 0 ? 'destructive' : 'default'} loading={isLoading} />
+        <StatCard label="Atestados" value={totalMed} loading={isLoading} />
+      </StatGroup>
 
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <MonthSwitcher year={year} month={month} onPrev={prevMonth} onNext={nextMonth} disableNext={isCurrentMonth} />
-        <div className="relative w-full sm:w-72">
-          <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            aria-label="Buscar funcionário"
-            placeholder="Buscar por nome ou função..."
-            className="pl-9"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-          />
+      <section aria-label="Equipe" className="overflow-hidden rounded-lg border bg-card">
+        <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <MonthSwitcher year={year} month={month} onPrev={prevMonth} onNext={nextMonth} disableNext={isCurrentMonth} className="self-start" />
+          <div className="relative w-full sm:w-64">
+            <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              aria-label="Buscar funcionário"
+              placeholder="Buscar por nome ou função"
+              className="pl-8"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+            />
+          </div>
         </div>
-      </div>
 
-      {!isLoading && withPending > 0 && (
-        <Alert variant="destructive">
-          <CircleAlert />
-          <AlertDescription>
-            <strong>{withPending}</strong> funcionário{withPending > 1 ? 's' : ''} com faltas sem justificativa ou saldo
-            negativo em {MONTHS[month - 1]}. Os cards marcados como <strong>Pendências</strong> aparecem primeiro.
-          </AlertDescription>
-        </Alert>
-      )}
-
-      {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {[...Array(6)].map((_, i) => <EmployeeCardSkeleton key={i} />)}
-        </div>
-      ) : isError ? (
-        <div className="rounded-xl border bg-card shadow-xs">
+        {isError ? (
           <EmptyState
             icon={WifiOff}
             tone="destructive"
@@ -346,9 +288,7 @@ export function DashboardPage() {
               </Button>
             }
           />
-        </div>
-      ) : sorted.length === 0 ? (
-        <div className="rounded-xl border border-dashed bg-card">
+        ) : !isLoading && sorted.length === 0 ? (
           <EmptyState
             icon={search ? Search : Users}
             title={search ? 'Nenhum resultado' : 'Nenhum funcionário cadastrado'}
@@ -361,11 +301,22 @@ export function DashboardPage() {
               )
             }
           />
-        </div>
-      ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          {sorted.map(emp => <EmployeeCard key={emp.id} emp={emp} month={month} year={year} />)}
-        </div>
+        ) : (
+          <>
+            <div className="hidden md:block">
+              <TeamTable rows={sorted} loading={isLoading} />
+            </div>
+            <div className="md:hidden">
+              <TeamList rows={sorted} loading={isLoading} />
+            </div>
+          </>
+        )}
+      </section>
+
+      {!isLoading && withPending > 0 && (
+        <p className="text-xs text-muted-foreground">
+          Funcionários com pendência em {MONTHS[month - 1]} aparecem primeiro. Clique no nome para abrir o ponto do mês.
+        </p>
       )}
     </div>
   )

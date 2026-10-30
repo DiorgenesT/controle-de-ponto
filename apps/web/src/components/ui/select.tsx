@@ -14,8 +14,8 @@ const SelectTrigger = React.forwardRef<
   <SelectPrimitive.Trigger
     ref={ref}
     className={cn(
-      'flex h-9 w-full cursor-pointer items-center justify-between gap-2 whitespace-nowrap rounded-lg border border-input bg-card px-3 py-1 text-sm text-foreground shadow-xs outline-none transition-[color,border-color,box-shadow]',
-      'focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/25 data-[placeholder]:text-muted-foreground',
+      'flex h-9 w-full cursor-pointer items-center justify-between gap-2 whitespace-nowrap rounded-md border border-input bg-card px-3 py-1 text-sm text-foreground outline-none transition-[color,border-color,box-shadow]',
+      'focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/20 data-[placeholder]:text-muted-foreground',
       'aria-[invalid=true]:border-destructive disabled:cursor-not-allowed disabled:opacity-60 dark:bg-input/20 [&>span]:truncate',
       className
     )}
@@ -58,7 +58,7 @@ const SelectContent = React.forwardRef<
       ref={ref}
       position={position}
       className={cn(
-        'relative z-50 max-h-[min(var(--radix-select-content-available-height),20rem)] min-w-[8rem] overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg',
+        'relative z-50 max-h-[min(var(--radix-select-content-available-height),20rem)] min-w-[8rem] overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-lg',
         'data-[state=open]:animate-pop-in data-[state=closed]:animate-fade-out',
         position === 'popper' && 'w-full min-w-[var(--radix-select-trigger-width)] data-[side=bottom]:translate-y-1 data-[side=top]:-translate-y-1',
         className
