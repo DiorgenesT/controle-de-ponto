@@ -27,3 +27,6 @@ apps/web/dist/
 
 # Subagent-driven-development scratch state
 .superpowers/
+
+# Wrangler local secrets
+.dev.vars

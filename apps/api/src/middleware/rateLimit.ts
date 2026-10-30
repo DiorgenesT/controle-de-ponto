@@ -23,18 +23,16 @@ export async function loginRateLimit(c: Context, next: Next) {
     }
   }
 
+  // Count before checking the password: parallel requests would otherwise all pass
+  // the check while bcrypt runs.
+  const current = attempts.get(ip)
+  if (current && now <= current.resetAt) {
+    current.count++
+  } else {
+    attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS })
+  }
+
   await next()
 
-  // Only count failed attempts (4xx responses)
-  if (c.res.status >= 400 && c.res.status < 500) {
-    const existing = attempts.get(ip)
-    if (existing && now <= existing.resetAt) {
-      existing.count++
-    } else {
-      attempts.set(ip, { count: 1, resetAt: now + WINDOW_MS })
-    }
-  } else {
-    // Successful login: clear attempts
-    attempts.delete(ip)
-  }
+  if (c.res.status < 400) attempts.delete(ip)
 }

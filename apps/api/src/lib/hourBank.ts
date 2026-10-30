@@ -1,6 +1,6 @@
 import type { D1Database } from '@cloudflare/workers-types'
 
-// Accumulated hour-bank balance for `employeeId` immediately before `year`/`month`
+// Accumulated hour-bank balance (payroll-settled entries excluded) for `employeeId` immediately before `year`/`month`
 export async function getAccumulatedBeforeMonth(
   db: D1Database,
   employeeId: string,
@@ -14,7 +14,7 @@ export async function getAccumulatedBeforeMonth(
       .prepare(
         `SELECT COALESCE(SUM(extra_minutes), 0) - COALESCE(SUM(missing_minutes), 0) AS balance
          FROM time_entries
-         WHERE employee_id = ? AND entry_date < ?`
+         WHERE employee_id = ? AND entry_date < ? AND bank_treatment = 'bank'`
       )
       .bind(employeeId, startDate)
       .first<{ balance: number }>(),
@@ -47,7 +47,7 @@ export async function getAccumulatedBeforeMonthByCompany(
                 COALESCE(SUM(te.extra_minutes), 0) - COALESCE(SUM(te.missing_minutes), 0) AS balance
          FROM time_entries te
          JOIN employees e ON e.id = te.employee_id
-         WHERE e.company_id = ? AND te.entry_date < ?
+         WHERE e.company_id = ? AND te.entry_date < ? AND te.bank_treatment = 'bank'
          GROUP BY te.employee_id`
       )
       .bind(companyId, startDate)

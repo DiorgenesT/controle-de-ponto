@@ -68,7 +68,7 @@ users.post('/', requireRole('admin'), async (c) => {
 
 // PUT /users/:id
 users.put('/:id', requireRole('admin'), async (c) => {
-  const { companyId } = c.get('user')
+  const { companyId, sub } = c.get('user')
   const { id } = c.req.param()
   const body = await c.req.json().catch(() => null)
 
@@ -87,6 +87,12 @@ users.put('/:id', requireRole('admin'), async (c) => {
   if (!existing) return c.json({ error: 'Usuário não encontrado', code: 'NOT_FOUND' }, 404)
 
   const { name, role } = parsed.data
+
+  // Prevents an admin from demoting themselves (and leaving the company without an admin)
+  if (id === sub && role !== undefined && role !== 'admin') {
+    return c.json({ error: 'Não é possível alterar o seu próprio papel', code: 'SELF_ROLE_CHANGE' }, 400)
+  }
+
   const fields: string[] = []
   const values: unknown[] = []
 

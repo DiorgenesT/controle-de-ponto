@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { updateCompanySchema } from '@ponto/shared'
+import { updateCompanySchema, companySettingsSchema } from '@ponto/shared'
 import type { Env } from '../lib/types'
 import type { AuthContext } from '../middleware/auth'
 import { authMiddleware, requireRole } from '../middleware/auth'
@@ -37,6 +37,30 @@ company.put('/', requireRole('admin'), async (c) => {
   await c.env.DB
     .prepare('UPDATE companies SET name = ?, cnpj = ?, address = ?, city = ? WHERE id = ?')
     .bind(name, cnpj, address ?? null, city ?? null, companyId)
+    .run()
+
+  const row = await c.env.DB
+    .prepare('SELECT * FROM companies WHERE id = ? LIMIT 1')
+    .bind(companyId)
+    .first()
+
+  return c.json({ data: row })
+})
+
+// PATCH /company/settings  (hour-bank policy)
+company.patch('/settings', requireRole('admin'), async (c) => {
+  const body = await c.req.json().catch(() => null)
+  const parsed = companySettingsSchema.safeParse(body)
+
+  if (!parsed.success) {
+    return c.json({ error: 'Dados inválidos', code: 'VALIDATION_ERROR', details: parsed.error.flatten() }, 400)
+  }
+
+  const { companyId } = c.get('user')
+
+  await c.env.DB
+    .prepare('UPDATE companies SET absence_treatment_default = ? WHERE id = ?')
+    .bind(parsed.data.absenceTreatmentDefault, companyId)
     .run()
 
   const row = await c.env.DB

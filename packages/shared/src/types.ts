@@ -18,6 +18,7 @@ export interface Company {
   cnpj: string
   address: string | null
   city: string | null
+  absenceTreatmentDefault: BankTreatment  // applied to new 'absence' entries
   createdAt: string
 }
 
@@ -43,6 +44,13 @@ export interface Employee {
 
 export type DayType = 'worked' | 'closed' | 'holiday' | 'absence' | 'vacation' | 'medical' | 'banco_horas'
 
+/**
+ * Where a day's extra/missing minutes are settled:
+ *   bank    → hour bank (counts toward the accumulated balance)
+ *   payroll → payroll (falta descontada em folha / hora extra paga); excluded from the bank
+ */
+export type BankTreatment = 'bank' | 'payroll'
+
 export interface TimeEntry {
   id: string
   employeeId: string
@@ -56,6 +64,7 @@ export interface TimeEntry {
   workedMinutes: number | null
   extraMinutes: number | null
   missingMinutes: number | null
+  bankTreatment: BankTreatment
   createdAt: string
   updatedAt: string
 }
@@ -120,7 +129,9 @@ export interface MonthlyReport {
   totalWorkedMinutes: number
   totalExtraMinutes: number
   totalMissingMinutes: number
-  balanceMinutes: number
+  payrollExtraMinutes: number    // part of totalExtraMinutes paid in payroll
+  payrollMissingMinutes: number  // part of totalMissingMinutes deducted in payroll
+  balanceMinutes: number         // hour-bank balance of the month (bank entries only)
   accumulatedMinutes: number
   previousMonthAccumulated: number
 }
