@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer'
-import { minutesToTime, getDayOfWeek, isSunday } from '@ponto/shared'
+import { minutesToTime, getDayOfWeek, isSunday, isWorkingSaturday } from '@ponto/shared'
 import type { MonthlyReport } from '@ponto/shared'
 import { getDaysInMonth } from 'date-fns'
 
@@ -78,8 +78,8 @@ const s = StyleSheet.create({
     borderColor: '#aaa',
   },
   rowAlt:   { backgroundColor: '#f9f9f9' },
-  rowSat:   { backgroundColor: '#eff6ff' },
-  rowSun:   { backgroundColor: '#f3f3f3' },
+  rowSat:   { backgroundColor: '#f6f6f6' },
+  rowSun:   { backgroundColor: '#eeeeee' },
 
   thText: { fontFamily: 'Helvetica-Bold', fontSize: 6.5 },
 
@@ -116,8 +116,13 @@ export function TimesheetPDF({ report }: Props) {
     const date = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const dayOfWeek = getDayOfWeek(date)
     const entry = entries.find((e) => e.entryDate === date)
-    return { day, date, dayOfWeek, isSunday: isSunday(date), entry }
+    const freeSaturday = dayOfWeek === 'SÁBADO' && !isWorkingSaturday(date, employee.saturdayMode)
+    return { day, date, dayOfWeek, isSunday: isSunday(date), freeSaturday, entry }
   })
+
+  const signed = (m: number) => `${m >= 0 ? '+' : ''}${minutesToTime(m)}`
+  // Manual hour-bank adjustment of the month — shown so the summary adds up
+  const adjustmentMinutes = report.accumulatedMinutes - report.previousMonthAccumulated - report.balanceMinutes
 
   return (
     <Document title={`Folha de Ponto — ${employee.name} — ${monthName} ${year}`}>
@@ -200,21 +205,24 @@ export function TimesheetPDF({ report }: Props) {
           </View>
 
           {/* Data rows */}
-          {rows.map(({ day, date, dayOfWeek, isSunday: sun, entry }) => {
+          {rows.map(({ day, date, dayOfWeek, isSunday: sun, freeSaturday, entry }) => {
             const isSat = dayOfWeek === 'SÁBADO'
             const rowBg = sun ? s.rowSun : isSat ? s.rowSat : day % 2 === 0 ? s.rowAlt : null
             const rowStyle = rowBg ? [s.trow, rowBg] : [s.trow]
+            const restLabel = !entry ? (sun ? 'Domingo — Folga' : freeSaturday ? 'Sábado livre' : null) : null
 
-            const obs = entry?.dayType && entry.dayType !== 'worked'
-              ? DAY_TYPE_LABELS[entry.dayType] ?? ''
-              : (entry?.notes ?? '')
+            const typeLabel = entry?.dayType ? DAY_TYPE_LABELS[entry.dayType] ?? '' : ''
+            const payrollNote = entry?.bankTreatment === 'payroll'
+              ? (entry.missingMinutes ? 'Desc. em folha' : entry.extraMinutes ? 'Pago em folha' : '')
+              : ''
+            const obs = [typeLabel, entry?.notes?.trim() ?? '', payrollNote].filter(Boolean).join(' — ')
 
             return (
               <View key={date} style={rowStyle}>
                 <Text style={s.cDia}>{day}</Text>
                 <Text style={s.cSem}>{dayOfWeek}</Text>
 
-                {sun ? (
+                {restLabel ? (
                   <>
                     <Text style={s.cHora} />
                     <Text style={s.cHora} />
@@ -223,7 +231,7 @@ export function TimesheetPDF({ report }: Props) {
                     <Text style={s.cHora} />
                     <Text style={s.cHora} />
                     <Text style={s.cHora} />
-                    <Text style={[s.cObs, { color: '#999', fontSize: 7 }]}>Domingo — Folga</Text>
+                    <Text style={[s.cObs, { color: '#888', fontSize: 7 }]}>{restLabel}</Text>
                   </>
                 ) : (
                   <>
@@ -261,8 +269,20 @@ export function TimesheetPDF({ report }: Props) {
                 <Text style={s.summaryLabel}>Horas Faltas:</Text>
                 <Text>{report.totalMissingMinutes > 0 ? '-' : ''}{minutesToTime(report.totalMissingMinutes)}</Text>
               </View>
+              {report.payrollMissingMinutes > 0 && (
+                <View style={s.summaryRow}>
+                  <Text style={s.summaryLabel}>Faltas desc. em folha:</Text>
+                  <Text>-{minutesToTime(report.payrollMissingMinutes)}</Text>
+                </View>
+              )}
+              {report.payrollExtraMinutes > 0 && (
+                <View style={s.summaryRow}>
+                  <Text style={s.summaryLabel}>Extras pagas em folha:</Text>
+                  <Text>{minutesToTime(report.payrollExtraMinutes)}</Text>
+                </View>
+              )}
               <View style={s.summaryRow}>
-                <Text style={s.summaryLabel}>Saldo do Mês:</Text>
+                <Text style={s.summaryLabel}>Saldo do Mês (banco):</Text>
                 <Text>{report.balanceMinutes >= 0 ? '+' : ''}{minutesToTime(report.balanceMinutes)}</Text>
               </View>
             </View>
@@ -271,6 +291,12 @@ export function TimesheetPDF({ report }: Props) {
                 <Text style={s.summaryLabel}>Saldo Acumulado Anterior:</Text>
                 <Text>{report.previousMonthAccumulated >= 0 ? '+' : ''}{minutesToTime(report.previousMonthAccumulated)}</Text>
               </View>
+              {adjustmentMinutes !== 0 && (
+                <View style={s.summaryRow}>
+                  <Text style={s.summaryLabel}>Ajuste manual do mês:</Text>
+                  <Text>{signed(adjustmentMinutes)}</Text>
+                </View>
+              )}
               <View style={s.summaryRow}>
                 <Text style={s.summaryLabel}>Total Acumulado:</Text>
                 <Text style={{ fontFamily: 'Helvetica-Bold' }}>

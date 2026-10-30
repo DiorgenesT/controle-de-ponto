@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 
 interface ToastOptions {
   title?: string
@@ -12,41 +12,37 @@ interface ToastState extends ToastOptions {
   open: boolean
 }
 
-const listeners: Array<(toasts: ToastState[]) => void> = []
+const listeners = new Set<(toasts: ToastState[]) => void>()
 let toasts: ToastState[] = []
 
-function notify(toastsState: ToastState[]) {
-  toasts = toastsState
+function notify(next: ToastState[]) {
+  toasts = next
   listeners.forEach((l) => l(toasts))
 }
 
 export function toast(options: ToastOptions) {
   const id = crypto.randomUUID()
-  const newToast: ToastState = { ...options, id, open: true }
-  notify([...toasts, newToast])
+  notify([...toasts, { ...options, id, open: true }])
 
-  setTimeout(() => {
-    notify(toasts.map((t) => (t.id === id ? { ...t, open: false } : t)))
-    setTimeout(() => {
-      notify(toasts.filter((t) => t.id !== id))
-    }, 300)
-  }, options.duration ?? 4000)
+  setTimeout(() => dismissToast(id), options.duration ?? 4000)
 
   return id
+}
+
+export function dismissToast(id: string) {
+  notify(toasts.map((t) => (t.id === id ? { ...t, open: false } : t)))
+  setTimeout(() => notify(toasts.filter((t) => t.id !== id)), 300)
 }
 
 export function useToast() {
   const [state, setState] = useState<ToastState[]>(toasts)
 
-  const subscribe = useCallback(() => {
-    listeners.push(setState)
+  useEffect(() => {
+    listeners.add(setState)
     return () => {
-      const index = listeners.indexOf(setState)
-      if (index > -1) listeners.splice(index, 1)
+      listeners.delete(setState)
     }
   }, [])
 
-  useState(subscribe)
-
-  return { toasts: state, toast }
+  return { toasts: state, toast, dismiss: dismissToast }
 }

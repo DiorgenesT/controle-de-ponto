@@ -1,23 +1,55 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { CalendarCheck, MoreHorizontal, Pencil, Plus, RotateCw, Search, UserX, Users, WifiOff } from 'lucide-react'
+import type { Employee } from '@ponto/shared'
 import { employeesApi } from '@/lib/api'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { useAuthStore } from '@/store/auth'
+import { cn } from '@/lib/utils'
+import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Users, Plus, Pencil, UserX } from 'lucide-react'
-import type { Employee } from '@ponto/shared'
-import { useAuthStore } from '@/store/auth'
-import { toast } from '@/hooks/use-toast'
+import { Input } from '@/components/ui/input'
+import { Skeleton } from '@/components/ui/skeleton'
+import { PageHeader } from '@/components/ui/page-header'
+import { EmptyState } from '@/components/ui/empty-state'
+import { UserAvatar } from '@/components/ui/avatar'
+import { ConfirmDialog } from '@/components/ui/alert-dialog'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+
+function formatDate(iso: string) {
+  const [y, m, d] = iso.split('-')
+  return y && m && d ? `${d}/${m}/${y}` : iso
+}
+
+function SaturdayInfo({ emp }: { emp: Employee }) {
+  if (emp.saturdayMode === 'none') return <span className="text-muted-foreground">Não trabalha</span>
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1.5">
+      <span className="tabular-nums">{emp.saturdayStart}–{emp.saturdayEnd}</span>
+      {emp.saturdayMode === 'first_two' && <Badge variant="muted">1º e 2º</Badge>}
+    </span>
+  )
+}
 
 export function EmployeesPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { user } = useAuthStore()
   const canEdit = user?.role === 'admin' || user?.role === 'manager'
+  const isAdmin = user?.role === 'admin'
   const [deactivating, setDeactivating] = useState<string | null>(null)
+  const [confirmTarget, setConfirmTarget] = useState<Employee | null>(null)
+  const [search, setSearch] = useState('')
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, refetch, isFetching } = useQuery({
     queryKey: ['employees'],
     queryFn: () => employeesApi.list(),
   })
@@ -35,104 +67,240 @@ export function EmployeesPage() {
     },
   })
 
-  const employees = (data?.data ?? []) as Employee[]
+  const employees = useMemo(() => (data?.data ?? []) as Employee[], [data])
+
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return employees
+    return employees.filter((e) => e.name.toLowerCase().includes(q) || e.role.toLowerCase().includes(q))
+  }, [employees, search])
+
+  function confirmDeactivate() {
+    if (!confirmTarget) return
+    setDeactivating(confirmTarget.id)
+    deactivateMutation.mutate(confirmTarget.id)
+    setConfirmTarget(null)
+  }
+
+  function renderActions(emp: Employee) {
+    if (!canEdit) return null
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            className="text-muted-foreground"
+            aria-label={`Ações para ${emp.name}`}
+            disabled={deactivating === emp.id}
+          >
+            <MoreHorizontal />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem onSelect={() => navigate(`/employees/${emp.id}/edit`)}>
+            <Pencil />
+            Editar
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => navigate(`/timesheet?employee=${emp.id}`)}>
+            <CalendarCheck />
+            Ver ponto
+          </DropdownMenuItem>
+          {isAdmin && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onSelect={() => setConfirmTarget(emp)}>
+                <UserX />
+                Desativar
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    )
+  }
+
+  const renderBody = () => {
+    if (isLoading) {
+      return (
+        <div className="divide-y">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="flex items-center gap-4 px-5 py-4">
+              <Skeleton className="size-9 rounded-full" />
+              <div className="flex-1 space-y-2">
+                <Skeleton className="h-3.5 w-48 max-w-full" />
+                <Skeleton className="h-3 w-28" />
+              </div>
+              <Skeleton className="hidden h-4 w-24 md:block" />
+              <Skeleton className="hidden h-4 w-24 md:block" />
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (isError) {
+      return (
+        <EmptyState
+          icon={WifiOff}
+          tone="destructive"
+          title="Não foi possível carregar os funcionários"
+          description="Verifique sua conexão e tente novamente."
+          action={
+            <Button variant="outline" onClick={() => refetch()} loading={isFetching}>
+              {!isFetching && <RotateCw />}Tentar novamente
+            </Button>
+          }
+        />
+      )
+    }
+
+    if (employees.length === 0) {
+      return (
+        <EmptyState
+          icon={Users}
+          title="Nenhum funcionário cadastrado"
+          description="Cadastre a equipe para começar a lançar o ponto."
+          action={
+            canEdit && (
+              <Button onClick={() => navigate('/employees/new')}>
+                <Plus /> Cadastrar funcionário
+              </Button>
+            )
+          }
+        />
+      )
+    }
+
+    if (filtered.length === 0) {
+      return <EmptyState icon={Search} title="Nenhum resultado" description="Tente buscar por outro nome ou função." />
+    }
+
+    return (
+      <>
+        {/* Desktop table */}
+        <div className="hidden md:block">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Funcionário</TableHead>
+                <TableHead>Admissão</TableHead>
+                <TableHead>Seg–Sex</TableHead>
+                <TableHead>Sábado</TableHead>
+                <TableHead className="text-right">Jornada</TableHead>
+                <TableHead className="text-right">Tolerância</TableHead>
+                {canEdit && <TableHead className="w-12"><span className="sr-only">Ações</span></TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((emp) => (
+                <TableRow key={emp.id} className={cn(deactivating === emp.id && 'opacity-50')}>
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <UserAvatar name={emp.name} />
+                      <div className="min-w-0">
+                        {canEdit ? (
+                          <Link
+                            to={`/employees/${emp.id}/edit`}
+                            className="block truncate font-medium text-foreground hover:text-primary hover:underline underline-offset-4"
+                          >
+                            {emp.name}
+                          </Link>
+                        ) : (
+                          <p className="truncate font-medium text-foreground">{emp.name}</p>
+                        )}
+                        <p className="truncate text-xs text-muted-foreground">{emp.role}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{formatDate(emp.admissionDate)}</TableCell>
+                  <TableCell>{emp.weekdayStart}–{emp.weekdayEnd}</TableCell>
+                  <TableCell><SaturdayInfo emp={emp} /></TableCell>
+                  <TableCell className="text-right">{emp.dailyHoursExpected}h</TableCell>
+                  <TableCell className="text-right text-muted-foreground">±{emp.toleranceMinutes} min</TableCell>
+                  {canEdit && (
+                    <TableCell className="text-right">
+                      {renderActions(emp)}
+                    </TableCell>
+                  )}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* Mobile list */}
+        <ul className="divide-y md:hidden">
+          {filtered.map((emp) => (
+            <li key={emp.id} className={cn('flex items-start gap-3 px-4 py-4', deactivating === emp.id && 'opacity-50')}>
+              <UserAvatar name={emp.name} />
+              <div className="min-w-0 flex-1 space-y-1.5">
+                <div>
+                  <p className="truncate font-medium text-foreground">{emp.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{emp.role}</p>
+                </div>
+                <div className="flex flex-wrap gap-1.5 text-xs">
+                  <Badge variant="secondary" className="tabular-nums">Seg–Sex {emp.weekdayStart}–{emp.weekdayEnd}</Badge>
+                  {emp.saturdayMode !== 'none' && (
+                    <Badge variant="outline" className="tabular-nums">
+                      Sáb {emp.saturdayStart}–{emp.saturdayEnd}
+                      {emp.saturdayMode === 'first_two' && ' (1º e 2º)'}
+                    </Badge>
+                  )}
+                </div>
+              </div>
+              {renderActions(emp)}
+            </li>
+          ))}
+        </ul>
+      </>
+    )
+  }
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Funcionários</h1>
-          <p className="text-muted-foreground">{employees.length} cadastrado(s)</p>
-        </div>
-        {canEdit && (
-          <Button onClick={() => navigate('/employees/new')}>
-            <Plus className="h-4 w-4" />
-            Novo Funcionário
-          </Button>
+      <PageHeader
+        title="Funcionários"
+        description={isLoading ? 'Carregando equipe…' : `${employees.length} funcionário${employees.length === 1 ? '' : 's'} cadastrado${employees.length === 1 ? '' : 's'}`}
+        actions={
+          canEdit && (
+            <Button onClick={() => navigate('/employees/new')}>
+              <Plus />
+              Novo funcionário
+            </Button>
+          )
+        }
+      />
+
+      <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+        {employees.length > 0 && !isError && (
+          <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+            <p className="text-sm font-medium text-foreground">Equipe</p>
+            <div className="relative w-full sm:w-64">
+              <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                type="search"
+                aria-label="Buscar funcionário"
+                placeholder="Buscar..."
+                className="h-8 pl-9"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+          </div>
         )}
+        {renderBody()}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Lista de Funcionários</CardTitle>
-        </CardHeader>
-        <CardContent className="p-0">
-          {isLoading ? (
-            <div className="py-12 text-center text-muted-foreground text-sm">Carregando...</div>
-          ) : employees.length === 0 ? (
-            <div className="py-12 text-center">
-              <Users className="h-10 w-10 mx-auto mb-3 opacity-30" />
-              <p className="text-muted-foreground text-sm">Nenhum funcionário cadastrado</p>
-              {canEdit && (
-                <Button className="mt-4" onClick={() => navigate('/employees/new')}>
-                  <Plus className="h-4 w-4" /> Cadastrar funcionário
-                </Button>
-              )}
-            </div>
-          ) : (
-            <div className="divide-y">
-              {employees.map((emp) => (
-                <div key={emp.id} className="flex items-center justify-between px-6 py-4 hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold text-sm shrink-0">
-                      {emp.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div>
-                      <p className="font-medium text-sm">{emp.name}</p>
-                      <p className="text-xs text-muted-foreground">{emp.role}</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-3">
-                    <div className="hidden sm:flex flex-col items-end gap-1">
-                      <Badge variant="secondary" className="text-xs">
-                        {emp.weekdayStart}–{emp.weekdayEnd}
-                      </Badge>
-                      {emp.saturdayMode !== 'none' && (
-                        <span className="text-xs text-muted-foreground">
-                          Sáb: {emp.saturdayStart}–{emp.saturdayEnd}
-                          {emp.saturdayMode === 'first_two' && ' (1º e 2º)'}
-                        </span>
-                      )}
-                    </div>
-
-                    {canEdit && (
-                      <div className="flex items-center gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => navigate(`/employees/${emp.id}/edit`)}
-                          title="Editar"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-
-                        {user?.role === 'admin' && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-destructive hover:text-destructive"
-                            onClick={() => {
-                              if (confirm(`Desativar ${emp.name}?`)) {
-                                setDeactivating(emp.id)
-                                deactivateMutation.mutate(emp.id)
-                              }
-                            }}
-                            disabled={deactivating === emp.id}
-                            title="Desativar"
-                          >
-                            <UserX className="h-4 w-4" />
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <ConfirmDialog
+        open={!!confirmTarget}
+        onOpenChange={(open) => !open && setConfirmTarget(null)}
+        title={`Desativar ${confirmTarget?.name ?? 'funcionário'}?`}
+        description="O funcionário deixa de aparecer nas listas e no lançamento de ponto. Os registros já lançados são mantidos."
+        confirmLabel="Desativar"
+        destructive
+        onConfirm={confirmDeactivate}
+      />
     </div>
   )
 }

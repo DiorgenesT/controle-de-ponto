@@ -1,33 +1,15 @@
 import { Hono } from 'hono'
-import { monthQuerySchema, hourBankAdjustmentSchema, calculateMonthlySummary } from '@ponto/shared'
-import type { TimeEntry, HourBankAdjustment } from '@ponto/shared'
+import { monthQuerySchema, yearMonthQuerySchema, hourBankAdjustmentSchema, calculateMonthlySummary } from '@ponto/shared'
+import type { HourBankAdjustment } from '@ponto/shared'
 import type { Env } from '../lib/types'
 import type { AuthContext } from '../middleware/auth'
+import { rowToEntry } from '../lib/rows'
 import { authMiddleware, requireRole } from '../middleware/auth'
 import { getAccumulatedBeforeMonth, getAccumulatedBeforeMonthByCompany } from '../lib/hourBank'
 
 const reports = new Hono<{ Bindings: Env } & AuthContext>()
 
 reports.use('*', authMiddleware)
-
-function rowToEntry(row: Record<string, unknown>): TimeEntry {
-  return {
-    id: row.id as string,
-    employeeId: row.employee_id as string,
-    entryDate: row.entry_date as string,
-    clockIn: row.clock_in as string | null,
-    lunchOut: row.lunch_out as string | null,
-    lunchReturn: row.lunch_return as string | null,
-    clockOut: row.clock_out as string | null,
-    dayType: row.day_type as TimeEntry['dayType'],
-    notes: row.notes as string | null,
-    workedMinutes: row.worked_minutes as number | null,
-    extraMinutes: row.extra_minutes as number | null,
-    missingMinutes: row.missing_minutes as number | null,
-    createdAt: row.created_at as string,
-    updatedAt: row.updated_at as string,
-  }
-}
 
 function rowToAdjustment(row: Record<string, unknown>): HourBankAdjustment {
   return {
@@ -119,6 +101,7 @@ reports.get('/monthly', async (c) => {
         cnpj: companyRow?.cnpj,
         address: companyRow?.address,
         city: companyRow?.city,
+        absenceTreatmentDefault: companyRow?.absence_treatment_default ?? 'bank',
       },
       year,
       month,
@@ -200,15 +183,22 @@ reports.post('/hourbank/adjustment', requireRole('admin', 'manager'), async (c) 
 
 // GET /reports/dashboard?year=&month=
 reports.get('/dashboard', async (c) => {
-  const year  = parseInt(c.req.query('year')  ?? String(new Date().getFullYear()))
-  const month = parseInt(c.req.query('month') ?? String(new Date().getMonth() + 1))
+  const now = new Date()
+  const parsed = yearMonthQuerySchema.safeParse({
+    year: c.req.query('year') ?? now.getFullYear(),
+    month: c.req.query('month') ?? now.getMonth() + 1,
+  })
+  if (!parsed.success) {
+    return c.json({ error: 'Parâmetros inválidos', code: 'VALIDATION_ERROR' }, 400)
+  }
+  const { year, month } = parsed.data
   const { companyId } = c.get('user')
 
   const startDate = `${year}-${String(month).padStart(2, '0')}-01`
   const endDate   = `${year}-${String(month).padStart(2, '0')}-31`
 
   type EmpRow   = { id: string; name: string; role: string; cpf: string | null; admission_date: string }
-  type EntryRow = { employee_id: string; day_type: string; worked_minutes: number | null; extra_minutes: number | null; missing_minutes: number | null }
+  type EntryRow = { employee_id: string; day_type: string; worked_minutes: number | null; extra_minutes: number | null; missing_minutes: number | null; bank_treatment: string }
 
   const [employeesResult, entriesResult, accumulatedBeforeMonth, currentAdjustmentsResult] = await Promise.all([
     c.env.DB
@@ -217,7 +207,7 @@ reports.get('/dashboard', async (c) => {
       .all(),
     c.env.DB
       .prepare(
-        `SELECT te.employee_id, te.day_type, te.worked_minutes, te.extra_minutes, te.missing_minutes
+        `SELECT te.employee_id, te.day_type, te.worked_minutes, te.extra_minutes, te.missing_minutes, te.bank_treatment
          FROM time_entries te
          JOIN employees e ON e.id = te.employee_id
          WHERE e.company_id = ? AND te.entry_date >= ? AND te.entry_date <= ?`
@@ -249,6 +239,8 @@ reports.get('/dashboard', async (c) => {
     workedMinutes: number
     extraMinutes: number
     missingMinutes: number
+    payrollMissingMinutes: number  // faltas descontadas em folha (fora do banco)
+    payrollExtraMinutes: number    // extras pagas em folha (fora do banco)
     absences: number        // faltas sem justificativa
     medicalDays: number     // atestados
     vacationDays: number    // férias
@@ -261,6 +253,7 @@ reports.get('/dashboard', async (c) => {
   for (const emp of employees) {
     stats[emp.id] = {
       workedDays: 0, workedMinutes: 0, extraMinutes: 0, missingMinutes: 0,
+      payrollMissingMinutes: 0, payrollExtraMinutes: 0,
       absences: 0, medicalDays: 0, vacationDays: 0, holidays: 0, bancoHorasDays: 0,
       prevAccumulated: accumulatedBeforeMonth[emp.id] ?? 0,
     }
@@ -272,6 +265,10 @@ reports.get('/dashboard', async (c) => {
     s.workedMinutes  += e.worked_minutes  ?? 0
     s.extraMinutes   += e.extra_minutes   ?? 0
     s.missingMinutes += e.missing_minutes ?? 0
+    if (e.bank_treatment === 'payroll') {
+      s.payrollMissingMinutes += e.missing_minutes ?? 0
+      s.payrollExtraMinutes   += e.extra_minutes   ?? 0
+    }
     if (e.day_type === 'worked')      s.workedDays++
     if (e.day_type === 'absence')     s.absences++
     if (e.day_type === 'medical')     s.medicalDays++
@@ -286,7 +283,7 @@ reports.get('/dashboard', async (c) => {
       totalEmployees: employees.length,
       employees: employees.map(emp => {
         const s = stats[emp.id]!
-        const monthBalance = s.extraMinutes - s.missingMinutes
+        const monthBalance = (s.extraMinutes - s.payrollExtraMinutes) - (s.missingMinutes - s.payrollMissingMinutes)
         return {
           id: emp.id,
           name: emp.name,
@@ -297,6 +294,8 @@ reports.get('/dashboard', async (c) => {
           workedMinutes: s.workedMinutes,
           extraMinutes: s.extraMinutes,
           missingMinutes: s.missingMinutes,
+          payrollMissingMinutes: s.payrollMissingMinutes,
+          payrollExtraMinutes: s.payrollExtraMinutes,
           absences: s.absences,
           medicalDays: s.medicalDays,
           vacationDays: s.vacationDays,

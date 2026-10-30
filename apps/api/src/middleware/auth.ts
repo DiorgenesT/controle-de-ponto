@@ -22,7 +22,18 @@ export async function authMiddleware(c: Context<{ Bindings: Env } & AuthContext>
     return c.json({ error: 'Token inválido ou expirado', code: 'INVALID_TOKEN' }, 401)
   }
 
-  c.set('user', payload)
+  // The token alone is not trusted for role/active: a deactivated or demoted user
+  // must lose access immediately, not when the 8h token expires.
+  const current = await c.env.DB
+    .prepare('SELECT role, active, company_id FROM users WHERE id = ? LIMIT 1')
+    .bind(payload.sub)
+    .first<{ role: string; active: number; company_id: string }>()
+
+  if (!current || current.active !== 1) {
+    return c.json({ error: 'Usuário inativo ou inexistente', code: 'INVALID_TOKEN' }, 401)
+  }
+
+  c.set('user', { ...payload, role: current.role, companyId: current.company_id })
   await next()
 }
 

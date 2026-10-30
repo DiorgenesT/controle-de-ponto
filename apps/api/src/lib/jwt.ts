@@ -4,20 +4,27 @@ const JWT_EXPIRY_SECONDS = 8 * 60 * 60 // 8 hours
 
 // ─── Encode ──────────────────────────────────────────────────────────────────
 
+function importHmacKey(secret: string, usage: 'sign' | 'verify'): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(secret), { name: 'HMAC', hash: 'SHA-256' }, false, [usage]
+  )
+}
+
 async function hmacSign(payload: string, secret: string): Promise<string> {
   const encoder = new TextEncoder()
-  const keyData = encoder.encode(secret)
-  const key = await crypto.subtle.importKey(
-    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
-  )
+  const key = await importHmacKey(secret, 'sign')
   const signature = await crypto.subtle.sign('HMAC', key, encoder.encode(payload))
   return btoa(String.fromCharCode(...new Uint8Array(signature)))
     .replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '')
 }
 
+// crypto.subtle.verify compares in constant time (no timing leak on the signature)
 async function hmacVerify(payload: string, signature: string, secret: string): Promise<boolean> {
-  const expected = await hmacSign(payload, secret)
-  return expected === signature
+  const padded = signature.replace(/-/g, '+').replace(/_/g, '/')
+  const binary = atob(padded + '='.repeat((4 - padded.length % 4) % 4))
+  const sigBytes = Uint8Array.from(binary, (ch) => ch.charCodeAt(0))
+  const key = await importHmacKey(secret, 'verify')
+  return crypto.subtle.verify('HMAC', key, sigBytes, new TextEncoder().encode(payload))
 }
 
 function base64urlEncode(obj: object): string {

@@ -1,7 +1,6 @@
 -- Controle de Ponto — D1 Schema
 -- Run: wrangler d1 execute controle-ponto-db --file=src/db/schema.sql
 
-PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 
 -- ─── Companies ───────────────────────────────────────────────────────────────
@@ -12,6 +11,8 @@ CREATE TABLE IF NOT EXISTS companies (
   cnpj        TEXT NOT NULL UNIQUE,
   address     TEXT,
   city        TEXT,
+  absence_treatment_default TEXT NOT NULL DEFAULT 'bank'
+              CHECK(absence_treatment_default IN ('bank','payroll')),
   created_at  TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -71,6 +72,9 @@ CREATE TABLE IF NOT EXISTS time_entries (
   worked_minutes   INTEGER,
   extra_minutes    INTEGER,
   missing_minutes  INTEGER,
+  -- 'bank' = extra/missing go to the hour bank; 'payroll' = settled in payroll, excluded from the bank
+  bank_treatment   TEXT NOT NULL DEFAULT 'bank'
+                   CHECK(bank_treatment IN ('bank','payroll')),
   created_at       TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
   UNIQUE(employee_id, entry_date)

@@ -4,11 +4,20 @@ import { z } from 'zod'
 
 const timeHHMM = z
   .string()
-  .regex(/^\d{2}:\d{2}$/, 'Formato inválido. Use HH:MM')
+  .regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Horário inválido. Use HH:MM (00:00–23:59)')
 
+// Rejects impossible dates like 2025-02-30 or 2024-13-45 (they would leak into the
+// hour-bank balance without ever showing up in a month view)
 const isoDate = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/, 'Formato inválido. Use YYYY-MM-DD')
+  .refine((value) => {
+    const date = new Date(`${value}T00:00:00Z`)
+    return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value
+  }, 'Data inexistente')
+
+// Employee/entity ids: UUIDs for new rows, but legacy rows may use other formats
+const entityId = z.string().min(1).max(40)
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -70,9 +79,11 @@ export const updateEmployeeSchema = createEmployeeSchema.partial()
 
 export const dayTypeSchema = z.enum(['worked', 'closed', 'holiday', 'absence', 'vacation', 'medical', 'banco_horas'])
 
+export const bankTreatmentSchema = z.enum(['bank', 'payroll'])
+
 export const upsertTimeEntrySchema = z
   .object({
-    employeeId: z.string().min(1).max(40),
+    employeeId: entityId,
     entryDate: isoDate,
     clockIn: timeHHMM.nullable().optional(),
     lunchOut: timeHHMM.nullable().optional(),
@@ -80,17 +91,59 @@ export const upsertTimeEntrySchema = z
     clockOut: timeHHMM.nullable().optional(),
     dayType: dayTypeSchema.default('worked'),
     notes: z.string().max(500).nullable().optional(),
+    bankTreatment: bankTreatmentSchema.optional(),
   })
-  .refine(
-    (data) => {
-      // For non-worked days, times are optional
-      if (data.dayType !== 'worked') return true
-      // If clock_in is set, clock_out must be set too
-      if (data.clockIn && !data.clockOut) return false
-      return true
-    },
-    { message: 'Se entrada for preenchida, saída é obrigatória', path: ['clockOut'] }
-  )
+  .superRefine((data, ctx) => {
+    const { clockIn, lunchOut, lunchReturn, clockOut } = data
+
+    if (data.dayType === 'worked' && (!clockIn || !clockOut)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Dia trabalhado exige entrada e saída. Para ausência, use "Falta".',
+        path: [clockIn ? 'clockOut' : 'clockIn'],
+      })
+      return
+    }
+    if (Boolean(clockIn) !== Boolean(clockOut)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Informe entrada e saída juntas', path: ['clockOut'] })
+      return
+    }
+    if (Boolean(lunchOut) !== Boolean(lunchReturn)) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Informe saída e retorno do almoço juntos', path: ['lunchReturn'] })
+      return
+    }
+    if (lunchOut && !clockIn) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Almoço exige entrada e saída', path: ['lunchOut'] })
+      return
+    }
+    // 'HH:MM' strings compare correctly as text
+    if (clockIn && clockOut && clockOut <= clockIn) {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Saída deve ser depois da entrada', path: ['clockOut'] })
+    }
+    if (clockIn && clockOut && lunchOut && lunchReturn) {
+      if (lunchReturn < lunchOut) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Retorno do almoço antes da saída para o almoço', path: ['lunchReturn'] })
+      } else if (lunchOut < clockIn || lunchReturn > clockOut) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'Almoço deve estar dentro do expediente', path: ['lunchOut'] })
+      }
+    }
+  })
+
+export const companySettingsSchema = z.object({
+  absenceTreatmentDefault: bankTreatmentSchema,
+})
+
+export const setBankTreatmentSchema = z.object({
+  bankTreatment: bankTreatmentSchema,
+})
+
+export const bulkBankTreatmentSchema = z.object({
+  employeeId: entityId,
+  year: z.number().int().min(2020).max(2100),
+  month: z.number().int().min(1).max(12),
+  dayTypes: z.array(dayTypeSchema.exclude(['banco_horas'])).min(1).default(['absence']),
+  bankTreatment: bankTreatmentSchema,
+})
 
 // ─── User ─────────────────────────────────────────────────────────────────────
 
@@ -122,14 +175,19 @@ export const changePasswordSchema = z
 
 // ─── Query Params ─────────────────────────────────────────────────────────────
 
+export const yearMonthQuerySchema = z.object({
+  year: z.coerce.number().int().min(2020).max(2100),
+  month: z.coerce.number().int().min(1).max(12),
+})
+
 export const monthQuerySchema = z.object({
-  employeeId: z.string().uuid(),
+  employeeId: entityId,
   year: z.coerce.number().int().min(2020).max(2100),
   month: z.coerce.number().int().min(1).max(12),
 })
 
 export const hourBankAdjustmentSchema = z.object({
-  employeeId: z.string().uuid(),
+  employeeId: entityId,
   year: z.coerce.number().int().min(2020).max(2100),
   month: z.coerce.number().int().min(1).max(12),
   adjustmentMinutes: z.coerce.number().int().min(-100000).max(100000),

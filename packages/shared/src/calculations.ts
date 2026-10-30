@@ -1,4 +1,4 @@
-import type { DailyCalculation, TimeEntry, Employee, SaturdayMode } from './types'
+import type { DailyCalculation, TimeEntry, Employee, SaturdayMode, DayType, BankTreatment } from './types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -62,14 +62,19 @@ export function isWorkingSaturday(dateStr: string, mode: SaturdayMode): boolean 
  *   medical            → worked = expected (certificate covers the day; no debit, no credit)
  *   holiday            → expected = 0; any hours worked count entirely as extra
  *   worked             → normal calculation with ±tolerance window
- *   sunday             → 0 for everything (rest day)
+ *   sunday             → rest day: expected = 0; hours worked (if any) count entirely as extra
  */
 export function calculateDay(
   entry: Pick<TimeEntry, 'clockIn' | 'lunchOut' | 'lunchReturn' | 'clockOut' | 'dayType' | 'entryDate'>,
   employee: Pick<Employee, 'toleranceMinutes' | 'dailyHoursExpected' | 'saturdayMode' | 'saturdayStart' | 'saturdayEnd'>
 ): DailyCalculation {
   if (isSunday(entry.entryDate)) {
-    return { workedMinutes: 0, expectedMinutes: 0, extraMinutes: 0, missingMinutes: 0, isComplete: false }
+    const workedOnSunday = (entry.dayType === 'worked' || entry.dayType === 'holiday') && entry.clockIn && entry.clockOut
+    if (!workedOnSunday) {
+      return { workedMinutes: 0, expectedMinutes: 0, extraMinutes: 0, missingMinutes: 0, isComplete: false }
+    }
+    const worked = computeWorked(entry.clockIn!, entry.clockOut!, entry.lunchOut, entry.lunchReturn)
+    return { workedMinutes: worked, expectedMinutes: 0, extraMinutes: worked, missingMinutes: 0, isComplete: true }
   }
 
   const isSat = isSaturday(entry.entryDate)
@@ -78,7 +83,7 @@ export function calculateDay(
     : SATURDAY_EXPECTED_MINUTES_FALLBACK
   const expectedMinutes = isSat
     ? (isWorkingSaturday(entry.entryDate, employee.saturdayMode) ? saturdayExpectedMinutes : 0)
-    : employee.dailyHoursExpected * MINUTES_PER_HOUR
+    : Math.round(employee.dailyHoursExpected * MINUTES_PER_HOUR)
 
   // Company closed or on vacation — neutral, no debit or credit
   if (entry.dayType === 'closed' || entry.dayType === 'vacation') {
@@ -148,26 +153,69 @@ export interface MonthlySummary {
   totalWorkedMinutes: number
   totalExtraMinutes: number
   totalMissingMinutes: number
-  balanceMinutes: number  // extra - missing
+  payrollExtraMinutes: number
+  payrollMissingMinutes: number
+  balanceMinutes: number  // hour-bank balance: extra - missing of 'bank' entries only
+}
+
+/** Hour-bank contribution of one entry; payroll-settled entries contribute nothing */
+export function entryBankBalance(
+  e: Pick<TimeEntry, 'extraMinutes' | 'missingMinutes' | 'bankTreatment'>
+): number {
+  if (e.bankTreatment === 'payroll') return 0
+  return (e.extraMinutes ?? 0) - (e.missingMinutes ?? 0)
 }
 
 export function calculateMonthlySummary(
-  entries: Pick<TimeEntry, 'extraMinutes' | 'missingMinutes' | 'workedMinutes'>[]
+  entries: Pick<TimeEntry, 'extraMinutes' | 'missingMinutes' | 'workedMinutes' | 'bankTreatment'>[]
 ): MonthlySummary {
   let totalWorkedMinutes = 0
   let totalExtraMinutes = 0
   let totalMissingMinutes = 0
+  let payrollExtraMinutes = 0
+  let payrollMissingMinutes = 0
+  let balanceMinutes = 0
 
   for (const e of entries) {
     totalWorkedMinutes += e.workedMinutes ?? 0
     totalExtraMinutes += e.extraMinutes ?? 0
     totalMissingMinutes += e.missingMinutes ?? 0
+    if (e.bankTreatment === 'payroll') {
+      payrollExtraMinutes += e.extraMinutes ?? 0
+      payrollMissingMinutes += e.missingMinutes ?? 0
+    }
+    balanceMinutes += entryBankBalance(e)
   }
 
   return {
     totalWorkedMinutes,
     totalExtraMinutes,
     totalMissingMinutes,
-    balanceMinutes: totalExtraMinutes - totalMissingMinutes,
+    payrollExtraMinutes,
+    payrollMissingMinutes,
+    balanceMinutes,
   }
+}
+
+// ─── Hour-bank treatment ──────────────────────────────────────────────────────
+
+/**
+ * Decides where a day's extra/missing minutes are settled.
+ * 'banco_horas' days always debit the bank (that is their purpose). Otherwise an
+ * explicit choice from admin/manager wins; else the stored choice is kept while
+ * the day type is unchanged; else absences get the company default and everything
+ * else goes to the bank.
+ */
+export function resolveBankTreatment(params: {
+  dayType: DayType
+  requested: BankTreatment | undefined
+  canDecide: boolean
+  existing: { dayType: DayType; bankTreatment: BankTreatment } | null
+  absenceDefault: BankTreatment
+}): BankTreatment {
+  const { dayType, requested, canDecide, existing, absenceDefault } = params
+  if (dayType === 'banco_horas') return 'bank'
+  if (requested && canDecide) return requested
+  if (existing && existing.dayType === dayType) return existing.bankTreatment
+  return dayType === 'absence' ? absenceDefault : 'bank'
 }
