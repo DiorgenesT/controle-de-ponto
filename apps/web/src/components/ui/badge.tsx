@@ -2,8 +2,11 @@ import * as React from 'react'
 import { cva, type VariantProps } from 'class-variance-authority'
 import { cn } from '@/lib/utils'
 
+// Badges are neutral labels. Color is reserved for states that carry meaning
+// (destructive = falta/erro, warning = pendência, success = positivo) and shows
+// only in the text/dot, never as a tinted fill.
 const badgeVariants = cva(
-  'inline-flex items-center gap-1 whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-medium transition-colors [&_svg]:size-3 [&_svg]:shrink-0',
+  'inline-flex items-center gap-1.5 whitespace-nowrap rounded border px-1.5 py-px text-xs font-medium [&_svg]:size-3 [&_svg]:shrink-0',
   {
     variants: {
       variant: {
@@ -11,16 +14,16 @@ const badgeVariants = cva(
         secondary: 'border-transparent bg-secondary text-secondary-foreground',
         outline: 'border-border text-foreground',
         muted: 'border-transparent bg-muted text-muted-foreground',
-        primary: 'border-primary-soft-border bg-primary-soft text-primary-soft-foreground',
-        destructive: 'border-destructive-soft-border bg-destructive-soft text-destructive-soft-foreground',
-        success: 'border-success-soft-border bg-success-soft text-success-soft-foreground',
-        warning: 'border-warning-soft-border bg-warning-soft text-warning-soft-foreground',
-        info: 'border-info-soft-border bg-info-soft text-info-soft-foreground',
-        special: 'border-special-soft-border bg-special-soft text-special-soft-foreground',
+        primary: 'border-border text-foreground',
+        destructive: 'border-border text-destructive-soft-foreground',
+        success: 'border-border text-success-soft-foreground',
+        warning: 'border-border text-warning-soft-foreground',
+        info: 'border-border text-foreground',
+        special: 'border-border text-foreground',
       },
       shape: {
         default: '',
-        pill: 'rounded-full px-2.5',
+        pill: '',
       },
     },
     defaultVariants: {
@@ -35,12 +38,12 @@ const dotColors: Record<string, string> = {
   secondary: 'bg-muted-foreground',
   outline: 'bg-muted-foreground',
   muted: 'bg-muted-foreground',
-  primary: 'bg-primary',
+  primary: 'bg-muted-foreground',
   destructive: 'bg-destructive',
   success: 'bg-success',
   warning: 'bg-warning',
-  info: 'bg-info',
-  special: 'bg-special',
+  info: 'bg-muted-foreground',
+  special: 'bg-muted-foreground',
 }
 
 export interface BadgeProps

@@ -18,13 +18,13 @@ const ToastViewport = React.forwardRef<
 ToastViewport.displayName = ToastPrimitives.Viewport.displayName
 
 const toastVariants = cva(
-  'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-xl border bg-popover p-4 pr-9 text-popover-foreground shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-slide-in-up data-[state=closed]:animate-slide-out-right data-[swipe=end]:animate-slide-out-right',
+  'group pointer-events-auto relative flex w-full items-start gap-3 overflow-hidden rounded-lg border bg-popover p-4 pr-9 text-popover-foreground shadow-lg transition-all data-[swipe=cancel]:translate-x-0 data-[swipe=end]:translate-x-[var(--radix-toast-swipe-end-x)] data-[swipe=move]:translate-x-[var(--radix-toast-swipe-move-x)] data-[swipe=move]:transition-none data-[state=open]:animate-slide-in-up data-[state=closed]:animate-slide-out-right data-[swipe=end]:animate-slide-out-right',
   {
     variants: {
       variant: {
         default: '',
-        destructive: 'destructive border-destructive-soft-border [&_[data-toast-icon]]:text-destructive',
-        success: 'border-success-soft-border [&_[data-toast-icon]]:text-success',
+        destructive: 'destructive [&_[data-toast-icon]]:text-destructive',
+        success: '[&_[data-toast-icon]]:text-success',
       },
     },
     defaultVariants: { variant: 'default' },

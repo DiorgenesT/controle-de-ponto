@@ -2,10 +2,7 @@ import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { getDaysInMonth } from 'date-fns'
-import {
-  CalendarClock, CircleAlert, Clock, Lock, Pencil, Plus, RotateCw, StickyNote, Trash2,
-  TrendingDown, TrendingUp, UserRoundSearch, Wallet, WifiOff,
-} from 'lucide-react'
+import { CircleAlert, Lock, Pencil, Plus, RotateCw, StickyNote, Trash2, UserRoundSearch, WifiOff } from 'lucide-react'
 import { entryBankBalance, getDayOfWeek, isSunday, isWorkingSaturday, minutesToTime } from '@ponto/shared'
 import type { BankTreatment, Employee, MonthlyReport, TimeEntry } from '@ponto/shared'
 import { companyApi, employeesApi, reportsApi, timeEntriesApi } from '@/lib/api'
@@ -16,14 +13,13 @@ import { useAuthStore } from '@/store/auth'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { StatCard } from '@/components/ui/stat-card'
+import { StatCard, StatGroup } from '@/components/ui/stat-card'
 import { PageHeader } from '@/components/ui/page-header'
 import { EmptyState } from '@/components/ui/empty-state'
 import { MonthSwitcher, MONTHS } from '@/components/ui/month-switcher'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ConfirmDialog } from '@/components/ui/alert-dialog'
 import { SimpleTooltip } from '@/components/ui/tooltip'
-import { UserAvatar } from '@/components/ui/avatar'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { EmployeePicker } from '@/components/employees/EmployeePicker'
 import { DayEditorDialog } from '@/components/timesheet/DayEditorDialog'
@@ -175,7 +171,7 @@ export function TimesheetPage() {
       </div>
 
       {!selectedEmployee ? (
-        <div className="rounded-xl border border-dashed bg-card">
+        <div className="rounded-lg border border-dashed bg-card">
           <EmptyState
             icon={UserRoundSearch}
             title={selectedEmployeeId && !loadingEmployees ? 'Funcionário não encontrado' : 'Selecione um funcionário'}
@@ -184,30 +180,23 @@ export function TimesheetPage() {
         </div>
       ) : (
         <>
-          {/* Employee strip */}
-          <div className="flex flex-col gap-3 rounded-xl border bg-card px-4 py-3 shadow-xs sm:flex-row sm:items-center sm:px-5">
-            <div className="flex min-w-0 flex-1 items-center gap-3">
-              <UserAvatar name={selectedEmployee.name} className={cn('size-10', !selectedEmployee.active && 'grayscale')} />
-              <div className="min-w-0">
-                <p className="flex items-center gap-2 truncate font-semibold text-foreground">
-                  {selectedEmployee.name}
-                  {!selectedEmployee.active && <Badge variant="muted" shape="pill">Inativo</Badge>}
-                </p>
-                <p className="truncate text-xs text-muted-foreground">{selectedEmployee.role}</p>
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-1.5 text-xs">
-              <Badge variant="secondary" className="tabular-nums">
-                <Clock />Seg–Sex {selectedEmployee.weekdayStart}–{selectedEmployee.weekdayEnd}
-              </Badge>
+          {/* Employee + schedule */}
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between sm:gap-4">
+            <p className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+              <span className="text-[15px] font-semibold text-foreground">{selectedEmployee.name}</span>
+              <span className="text-sm text-muted-foreground">{selectedEmployee.role}</span>
+              {!selectedEmployee.active && <Badge variant="muted">Inativo</Badge>}
+            </p>
+            <p className="text-[13px] tabular-nums text-muted-foreground">
+              Seg–Sex {selectedEmployee.weekdayStart}–{selectedEmployee.weekdayEnd}
               {selectedEmployee.saturdayMode !== 'none' && (
-                <Badge variant="secondary" className="tabular-nums">
-                  Sáb {selectedEmployee.saturdayStart}–{selectedEmployee.saturdayEnd}
+                <>
+                  {' · '}Sáb {selectedEmployee.saturdayStart}–{selectedEmployee.saturdayEnd}
                   {selectedEmployee.saturdayMode === 'first_two' && ' (1º e 2º)'}
-                </Badge>
+                </>
               )}
-              <Badge variant="outline">Tolerância ±{selectedEmployee.toleranceMinutes} min</Badge>
-            </div>
+              {' · '}Tolerância ±{selectedEmployee.toleranceMinutes} min
+            </p>
           </div>
 
           {!selectedEmployee.active && (
@@ -221,54 +210,47 @@ export function TimesheetPage() {
           )}
 
           {/* KPIs */}
-          <section aria-label="Resumo do mês" className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <StatCard label="Horas trabalhadas" value={minutesToTime(totals.worked)} icon={Clock} loading={loadingMonth} />
+          <StatGroup aria-label="Resumo do mês" className="grid-cols-2 md:grid-cols-3 xl:grid-cols-5">
+            <StatCard label="Horas trabalhadas" value={minutesToTime(totals.worked)} loading={loadingMonth} />
             <StatCard
               label="Horas extras"
               value={totals.extra > 0 ? `+${minutesToTime(totals.extra)}` : '00:00'}
-              icon={TrendingUp}
               tone={totals.extra > 0 ? 'success' : 'default'}
-              emphasize={totals.extra > 0}
               loading={loadingMonth}
             />
             <StatCard
               label="Horas de falta"
               value={totals.missing > 0 ? `-${minutesToTime(totals.missing)}` : '00:00'}
-              icon={TrendingDown}
               tone={totals.missing > 0 ? 'destructive' : 'default'}
-              emphasize={totals.missing > 0}
               hint={totals.payrollMissing > 0 ? `${minutesToTime(totals.payrollMissing)} desc. em folha` : undefined}
               loading={loadingMonth}
             />
             <StatCard
               label="Saldo do mês (banco)"
               value={signedTime(totals.balance)}
-              icon={Wallet}
               tone={totals.balance > 0 ? 'success' : totals.balance < 0 ? 'destructive' : 'default'}
-              emphasize={totals.balance !== 0}
               loading={loadingMonth}
             />
             <StatCard
               label="Saldo acumulado"
               value={monthlyReport ? signedTime(monthlyReport.accumulatedMinutes) : '—'}
-              icon={CalendarClock}
-              tone={monthlyReport && monthlyReport.accumulatedMinutes < 0 ? 'destructive' : 'primary'}
+              tone={monthlyReport && monthlyReport.accumulatedMinutes < 0 ? 'destructive' : monthlyReport && monthlyReport.accumulatedMinutes > 0 ? 'success' : 'default'}
               hint={monthlyReport ? `Anterior ${signedTime(previousMonthAccumulated)}${currentMonthAdjustment ? ` · ajuste ${signedTime(currentMonthAdjustment)}` : ''}` : undefined}
               loading={loadingReport}
               className="col-span-2 md:col-span-1"
             />
-          </section>
+          </StatGroup>
 
           {missingRecords > 0 && !loadingMonth && (
-            <p className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="size-2 rounded-full bg-warning" aria-hidden />
+            <p className="flex items-center gap-2 text-[13px] text-muted-foreground">
+              <span className="size-1.5 rounded-full bg-warning" aria-hidden />
               {missingRecords === 1 ? '1 dia útil já passado' : `${missingRecords} dias úteis já passados`} sem registro em{' '}
               {MONTHS[currentMonth - 1]}. Nada é descontado até que o dia seja lançado.
             </p>
           )}
 
           {/* Month grid */}
-          <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+          <div className="overflow-hidden rounded-lg border bg-card">
             {entriesQuery.isError ? (
               <EmptyState
                 icon={WifiOff}
@@ -284,12 +266,12 @@ export function TimesheetPage() {
               <Table className="min-w-[860px]">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead className="w-20">Dia</TableHead>
+                    <TableHead className="w-24">Dia</TableHead>
                     <TableHead className="text-center">Entrada</TableHead>
                     <TableHead className="text-center">Saída alm.</TableHead>
                     <TableHead className="text-center">Retorno</TableHead>
                     <TableHead className="text-center">Saída</TableHead>
-                    <TableHead className="text-right">Trab.</TableHead>
+                    <TableHead className="text-right">Trabalhado</TableHead>
                     <TableHead className="text-right">Extra</TableHead>
                     <TableHead className="text-right">Falta</TableHead>
                     <TableHead>Situação</TableHead>
@@ -314,19 +296,19 @@ export function TimesheetPage() {
                             className={cn(
                               'group',
                               row.restDay && !entry && 'bg-muted/40 text-muted-foreground hover:bg-muted/50',
-                              row.isToday && 'bg-primary-soft/60 hover:bg-primary-soft'
+                              row.isToday && 'bg-muted/70 hover:bg-muted'
                             )}
                           >
-                            <TableCell className="relative py-2.5">
-                              {row.isToday && <span aria-hidden className="absolute inset-y-1 left-0 w-[3px] rounded-r bg-primary" />}
+                            <TableCell className="py-2">
                               <div className="flex items-baseline gap-2">
-                                <span className="w-5 text-right font-semibold text-foreground">{String(row.day).padStart(2, '0')}</span>
-                                <span className="text-[11px] font-medium uppercase text-muted-foreground">{row.weekday.slice(0, 3)}</span>
+                                <span className="w-5 text-right font-medium text-foreground">{String(row.day).padStart(2, '0')}</span>
+                                <span className="w-7 text-xs text-muted-foreground">{row.weekday.slice(0, 3).toLowerCase()}</span>
+                                {row.isToday && <span className="text-xs font-medium text-primary">hoje</span>}
                               </div>
                             </TableCell>
 
                             {row.restDay && !entry ? (
-                              <TableCell colSpan={8} className="py-2.5 text-xs italic">{restLabel}</TableCell>
+                              <TableCell colSpan={8} className="py-2 text-xs">{restLabel}</TableCell>
                             ) : (
                               <>
                                 <TimeCell value={entry?.clockIn} />
@@ -336,22 +318,31 @@ export function TimesheetPage() {
                                 <TableCell className="text-right">
                                   {entry?.workedMinutes ? minutesToTime(entry.workedMinutes) : <span className="text-muted-foreground/50">—</span>}
                                 </TableCell>
-                                <TableCell className="text-right font-medium text-success-soft-foreground">
-                                  {entry?.extraMinutes ? `+${minutesToTime(entry.extraMinutes)}` : <span className="font-normal text-muted-foreground/50">—</span>}
+                                <TableCell className="text-right text-success-soft-foreground">
+                                  {entry?.extraMinutes ? `+${minutesToTime(entry.extraMinutes)}` : <span className="text-muted-foreground/50">—</span>}
                                 </TableCell>
-                                <TableCell className="text-right font-medium text-destructive-soft-foreground">
-                                  {entry?.missingMinutes ? `-${minutesToTime(entry.missingMinutes)}` : <span className="font-normal text-muted-foreground/50">—</span>}
+                                <TableCell className="text-right text-destructive-soft-foreground">
+                                  {entry?.missingMinutes ? `\u2212${minutesToTime(entry.missingMinutes)}` : <span className="text-muted-foreground/50">—</span>}
                                 </TableCell>
                                 <TableCell className="max-w-[16rem]">
                                   <div className="flex flex-wrap items-center gap-1.5">
-                                    {row.restDay && entry && <Badge variant="outline">{row.restDay === 'sunday' ? 'Domingo' : 'Sáb. livre'}</Badge>}
-                                    {entry && typeBadge && <Badge variant={typeBadge}>{DAY_TYPE_LABELS[entry.dayType]}</Badge>}
+                                    {row.restDay && entry && <span className="text-xs text-muted-foreground">{row.restDay === 'sunday' ? 'Domingo' : 'Sáb. livre'}</span>}
+                                    {entry && typeBadge && (
+                                      <span className={cn('text-[13px]', entry.dayType === 'absence' ? 'font-medium text-destructive-soft-foreground' : 'text-foreground')}>
+                                        {DAY_TYPE_LABELS[entry.dayType]}
+                                      </span>
+                                    )}
                                     {isPayroll && (
                                       <SimpleTooltip label="Acertado na folha de pagamento — não entra no banco de horas">
                                         <Badge variant="outline" tabIndex={0}>Folha</Badge>
                                       </SimpleTooltip>
                                     )}
-                                    {row.missingRecord && <Badge variant="warning" dot>Sem registro</Badge>}
+                                    {row.missingRecord && (
+                                      <span className="inline-flex items-center gap-1.5 text-[13px] text-warning-soft-foreground">
+                                        <span aria-hidden className="size-1.5 rounded-full bg-warning" />
+                                        Sem registro
+                                      </span>
+                                    )}
                                     {entry?.notes && (
                                       <SimpleTooltip label={entry.notes}>
                                         <span tabIndex={0} className="inline-flex min-w-0 max-w-[10rem] items-center gap-1 text-xs text-muted-foreground">
@@ -366,7 +357,7 @@ export function TimesheetPage() {
                             )}
 
                             {canEdit && (
-                              <TableCell className="py-1.5 text-right">
+                              <TableCell className="py-1 text-right">
                                 <div className="flex justify-end gap-0.5">
                                   {row.restDay && !entry ? (
                                     <SimpleTooltip label="Lançar trabalho neste dia (conta como extra)">
@@ -383,7 +374,7 @@ export function TimesheetPage() {
                                       </SimpleTooltip>
                                       {entry && (
                                         <SimpleTooltip label="Excluir lançamento">
-                                          <Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:bg-destructive-soft hover:text-destructive-soft-foreground" onClick={() => setDeleteTarget(entry)} aria-label={`Excluir lançamento do dia ${row.day}`}>
+                                          <Button variant="ghost" size="icon-xs" className="text-muted-foreground hover:text-destructive-soft-foreground" onClick={() => setDeleteTarget(entry)} aria-label={`Excluir lançamento do dia ${row.day}`}>
                                             <Trash2 />
                                           </Button>
                                         </SimpleTooltip>

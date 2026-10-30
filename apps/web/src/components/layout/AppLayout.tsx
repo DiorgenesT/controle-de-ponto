@@ -9,7 +9,6 @@ import { useAuthStore } from '@/store/auth'
 import { useUiStore } from '@/store/ui'
 import { Toaster } from '@/components/ui/toaster'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { UserAvatar } from '@/components/ui/avatar'
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet'
 import { SimpleTooltip, TooltipProvider } from '@/components/ui/tooltip'
@@ -71,13 +70,13 @@ function useBreadcrumb(pathname: string) {
 
 function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   return (
-    <nav aria-label="Navegação principal" className="flex-1 space-y-5 overflow-y-auto px-3 py-2 scrollbar-thin">
+    <nav aria-label="Navegação principal" className="flex-1 space-y-4 overflow-y-auto px-3 py-3 scrollbar-thin">
       {NAV_GROUPS.map((group) => (
-        <div key={group.label} className="space-y-1">
+        <div key={group.label} className="space-y-px">
           {collapsed ? (
             <div className="mx-2 mb-2 h-px bg-sidebar-border" />
           ) : (
-            <p className="px-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-muted/80">
+            <p className="px-2.5 pb-1 text-xs font-medium text-sidebar-muted">
               {group.label}
             </p>
           )}
@@ -89,24 +88,21 @@ function SidebarNav({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?
                 aria-label={collapsed ? label : undefined}
                 className={({ isActive }) =>
                   cn(
-                    'group relative flex h-9 items-center gap-3 rounded-lg px-3 text-[13px] font-medium transition-colors',
+                    'group flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13px] transition-colors',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary',
                     collapsed && 'justify-center px-0',
                     isActive
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
+                      ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
+                      : 'text-sidebar-foreground hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground'
                   )
                 }
               >
                 {({ isActive }) => (
                   <>
-                    {isActive && (
-                      <span aria-hidden className="absolute -left-3 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-sidebar-primary" />
-                    )}
                     <Icon
                       className={cn(
-                        'size-[17px] shrink-0 transition-colors',
-                        isActive ? 'text-sidebar-primary' : 'text-sidebar-muted group-hover:text-sidebar-accent-foreground'
+                        'size-4 shrink-0 transition-colors',
+                        isActive ? 'text-sidebar-accent-foreground' : 'text-sidebar-muted group-hover:text-sidebar-accent-foreground'
                       )}
                     />
                     {!collapsed && <span className="truncate">{label}</span>}
@@ -126,15 +122,15 @@ function SidebarBrand({ collapsed }: { collapsed: boolean }) {
     <Link
       to="/dashboard"
       className={cn(
-        'flex h-16 shrink-0 items-center gap-3 px-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-primary',
+        'flex h-14 shrink-0 items-center gap-2.5 border-b border-sidebar-border px-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sidebar-primary',
         collapsed && 'justify-center px-0'
       )}
     >
       <BrandMark />
       {!collapsed && (
         <div className="min-w-0 leading-tight">
-          <p className="truncate text-[14px] font-semibold tracking-tight text-sidebar-accent-foreground">Controle de Ponto</p>
-          <p className="truncate text-[12px] text-sidebar-muted">Alexandre Motos</p>
+          <p className="truncate text-[13px] font-semibold text-sidebar-accent-foreground">Alexandre Motos</p>
+          <p className="truncate text-xs text-sidebar-muted">Controle de ponto</p>
         </div>
       )}
     </Link>
@@ -165,7 +161,7 @@ export function AppLayout() {
         <aside
           className={cn(
             'hidden shrink-0 flex-col border-r border-sidebar-border bg-sidebar transition-[width] duration-200 ease-out lg:flex',
-            collapsed ? 'w-[68px]' : 'w-64'
+            collapsed ? 'w-[60px]' : 'w-56'
           )}
         >
           <SidebarBrand collapsed={collapsed} />
@@ -177,11 +173,11 @@ export function AppLayout() {
                 onClick={toggleSidebar}
                 aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
                 className={cn(
-                  'flex h-9 cursor-pointer items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary',
-                  collapsed ? 'w-9 justify-center px-0' : 'w-full'
+                  'flex h-8 cursor-pointer items-center gap-2.5 rounded-md px-2.5 text-[13px] text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-primary',
+                  collapsed ? 'w-8 justify-center px-0' : 'w-full'
                 )}
               >
-                {collapsed ? <PanelLeftOpen className="size-[17px]" /> : <PanelLeftClose className="size-[17px]" />}
+                {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
                 {!collapsed && 'Recolher menu'}
               </button>
             </SimpleTooltip>
@@ -217,7 +213,7 @@ export function AppLayout() {
 
         {/* Main column */}
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/85 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/70 sm:px-5">
+          <header className="z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background px-3 sm:px-5">
             <Button
               variant="ghost"
               size="icon-sm"
@@ -228,7 +224,7 @@ export function AppLayout() {
               <Menu />
             </Button>
             <Link to="/dashboard" className="mr-1 lg:hidden" aria-label="Início">
-              <BrandMark className="size-7 [&_svg]:size-4" />
+              <BrandMark className="size-7 text-xs" />
             </Link>
 
             <nav aria-label="Trilha" className="min-w-0 flex-1">
@@ -263,10 +259,10 @@ export function AppLayout() {
               <DropdownMenuTrigger asChild>
                 <button
                   type="button"
-                  className="flex cursor-pointer items-center gap-2 rounded-lg py-1 pl-1 pr-1.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:pr-2"
+                  className="flex cursor-pointer items-center gap-2 rounded-md py-1 pl-1 pr-1.5 transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:pr-2"
                   aria-label="Menu do usuário"
                 >
-                  <UserAvatar name={user?.name ?? '?'} className="size-8" />
+                  <UserAvatar name={user?.name ?? '?'} className="size-7" />
                   <span className="hidden max-w-[10rem] text-left leading-tight sm:block">
                     <span className="block truncate text-[13px] font-medium text-foreground">{user?.name}</span>
                     <span className="block truncate text-[11px] text-muted-foreground">{roleLabel}</span>
@@ -280,11 +276,9 @@ export function AppLayout() {
                   <div className="min-w-0">
                     <p className="truncate text-sm font-semibold text-foreground">{user?.name}</p>
                     <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                    <p className="truncate text-xs text-muted-foreground">{roleLabel}</p>
                   </div>
                 </DropdownMenuLabel>
-                <div className="px-2 pb-2">
-                  <Badge variant="primary" shape="pill">{roleLabel}</Badge>
-                </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => navigate('/settings')}>
                   <Settings />
@@ -300,7 +294,7 @@ export function AppLayout() {
           </header>
 
           <main className="flex-1 overflow-y-auto scrollbar-thin">
-            <div className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+            <div className="mx-auto w-full max-w-[1280px] px-4 py-5 sm:px-6 lg:px-8 lg:py-7">
               <Outlet />
             </div>
           </main>

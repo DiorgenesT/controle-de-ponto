@@ -7,7 +7,7 @@ import { createEmployeeSchema } from '@ponto/shared'
 import type { z } from 'zod'
 import type { Employee } from '@ponto/shared'
 import { employeesApi } from '@/lib/api'
-import { ArrowLeft, CalendarDays, Clock, Info, UserRound } from 'lucide-react'
+import { ArrowLeft, Info } from 'lucide-react'
 import { toast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -15,7 +15,6 @@ import { Input } from '@/components/ui/input'
 import { FormField } from '@/components/ui/form-field'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/ui/page-header'
-import { UserAvatar } from '@/components/ui/avatar'
 
 type EmployeeForm = z.infer<typeof createEmployeeSchema>
 
@@ -31,28 +30,21 @@ const SATURDAY_OPTIONS = [
 ] as const
 
 function Section({
-  icon: Icon,
   title,
   description,
   children,
 }: {
-  icon: React.ElementType
   title: string
   description: string
   children: React.ReactNode
 }) {
   return (
     <section className="grid gap-4 lg:grid-cols-[minmax(0,15rem)_1fr] lg:gap-8">
-      <div className="flex items-start gap-3 lg:block">
-        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-card text-muted-foreground shadow-xs lg:mb-3">
-          <Icon className="size-4" aria-hidden />
-        </div>
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-          <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{description}</p>
-        </div>
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">{description}</p>
       </div>
-      <div className="rounded-xl border bg-card p-5 shadow-xs sm:p-6">{children}</div>
+      <div className="rounded-lg border bg-card p-5 sm:p-6">{children}</div>
     </section>
   )
 }
@@ -165,10 +157,7 @@ export function EmployeeFormPage() {
         description={isEditing ? 'Atualize os dados cadastrais e a jornada.' : 'Preencha os dados e a jornada de trabalho.'}
         actions={
           isEditing && emp ? (
-            <div className="hidden items-center gap-2.5 rounded-lg border bg-card py-1.5 pl-1.5 pr-3 shadow-xs sm:flex">
-              <UserAvatar name={watchedName || emp.name} className="size-7" />
-              <span className="max-w-[14rem] truncate text-sm font-medium">{watchedName || emp.name}</span>
-            </div>
+            <span className="hidden max-w-[16rem] truncate text-sm text-muted-foreground sm:block">{watchedName || emp.name}</span>
           ) : undefined
         }
       />
@@ -181,7 +170,7 @@ export function EmployeeFormPage() {
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-3 w-48" />
               </div>
-              <div className="space-y-4 rounded-xl border bg-card p-6">
+              <div className="space-y-4 rounded-lg border bg-card p-6">
                 <Skeleton className="h-9 w-full" />
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Skeleton className="h-9" />
@@ -193,7 +182,7 @@ export function EmployeeFormPage() {
         </div>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-8" noValidate>
-          <Section icon={UserRound} title="Dados pessoais" description="Identificação do funcionário, como aparece na folha de ponto.">
+          <Section title="Dados pessoais" description="Identificação do funcionário, como aparece na folha de ponto.">
             <div className="grid gap-5 sm:grid-cols-2">
               <FormField label="Nome completo" htmlFor="name" required error={errors.name?.message} className="sm:col-span-2">
                 <Input id="name" placeholder="Ex.: Jessica Nascimento dos Santos" aria-invalid={!!errors.name} {...register('name')} />
@@ -229,9 +218,9 @@ export function EmployeeFormPage() {
             </div>
           </Section>
 
-          <Section icon={Clock} title="Jornada (segunda a sexta)" description="Horários de referência, carga líquida diária e tolerância para extras e faltas.">
+          <Section title="Jornada (segunda a sexta)" description="Horários de referência, carga líquida diária e tolerância para extras e faltas.">
             {isEditing && (
-              <p className="mb-5 flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
+              <p className="mb-5 flex items-start gap-2 rounded-md border px-3 py-2.5 text-xs text-muted-foreground">
                 <Info className="mt-px size-3.5 shrink-0" aria-hidden />
                 Mudanças de jornada, sábados ou tolerância valem para novos lançamentos. Para reaplicar a um mês já lançado, use
                 "Recalcular mês" em Lançar ponto ou Relatórios.
@@ -262,7 +251,7 @@ export function EmployeeFormPage() {
             </div>
           </Section>
 
-          <Section icon={CalendarDays} title="Sábados" description="Defina se o funcionário trabalha aos sábados e em qual horário.">
+          <Section title="Sábados" description="Defina se o funcionário trabalha aos sábados e em qual horário.">
             <div className="space-y-5">
               <fieldset>
                 <legend className="mb-2 text-[13px] font-medium text-foreground">Jornada aos sábados</legend>
@@ -271,9 +260,9 @@ export function EmployeeFormPage() {
                     <label
                       key={opt.value}
                       className={cn(
-                        'relative flex cursor-pointer flex-col gap-0.5 rounded-lg border bg-card px-3.5 py-3 transition-colors hover:bg-accent/50',
+                        'relative flex cursor-pointer flex-col gap-0.5 rounded-md border bg-card px-3.5 py-3 transition-colors hover:bg-accent/50',
                         'has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring has-[:focus-visible]:ring-offset-2 has-[:focus-visible]:ring-offset-background',
-                        saturdayMode === opt.value && 'border-primary bg-primary-soft hover:bg-primary-soft'
+                        saturdayMode === opt.value && 'border-primary'
                       )}
                     >
                       <input type="radio" value={opt.value} className="sr-only" {...register('saturdayMode')} />
@@ -309,7 +298,7 @@ export function EmployeeFormPage() {
             </div>
           </Section>
 
-          <div className="sticky bottom-0 -mx-4 flex justify-end gap-3 border-t bg-background/90 px-4 py-4 backdrop-blur sm:-mx-6 sm:px-6 lg:mx-0 lg:rounded-xl lg:border lg:bg-card lg:px-5 lg:shadow-xs">
+          <div className="sticky bottom-0 -mx-4 flex justify-end gap-3 border-t bg-background px-4 py-4 sm:-mx-6 sm:px-6 lg:mx-0 lg:rounded-lg lg:border lg:bg-card lg:px-5">
             <Button type="button" variant="outline" onClick={() => navigate('/employees')}>
               Cancelar
             </Button>

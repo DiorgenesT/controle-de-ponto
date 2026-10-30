@@ -275,7 +275,7 @@ export function DayEditorDialog({
               )}
             </div>
           ) : (
-            <p className="flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2.5 text-xs text-muted-foreground">
+            <p className="flex items-start gap-2 rounded-md border px-3 py-2.5 text-xs text-muted-foreground">
               <Info className="mt-px size-3.5 shrink-0" aria-hidden />
               {form.dayType === 'medical'
                 ? 'Atestado abona o dia inteiro: não é preciso informar horários.'
@@ -284,7 +284,7 @@ export function DayEditorDialog({
           )}
 
           {/* Live calculation */}
-          <div className="grid grid-cols-3 divide-x overflow-hidden rounded-lg border bg-muted/30 text-center tabular-nums">
+          <div className="grid grid-cols-3 divide-x overflow-hidden rounded-md border text-center tabular-nums">
             <div className="px-3 py-2.5">
               <p className="text-[11px] text-muted-foreground">Trabalhado</p>
               <p className="text-sm font-semibold">{minutesToTime(preview.workedMinutes)}</p>
@@ -357,7 +357,7 @@ export function DayEditorDialog({
             <Button
               type="button"
               variant="ghost"
-              className="text-destructive-soft-foreground hover:bg-destructive-soft hover:text-destructive-soft-foreground"
+              className="text-destructive-soft-foreground hover:bg-accent hover:text-destructive-soft-foreground"
               onClick={() => onRequestDelete(entry)}
             >
               <Trash2 />

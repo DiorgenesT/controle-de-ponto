@@ -8,7 +8,6 @@ import { useAuthStore } from '@/store/auth'
 import { cn } from '@/lib/utils'
 import { toast } from '@/hooks/use-toast'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import { PageHeader } from '@/components/ui/page-header'
@@ -34,7 +33,7 @@ function SaturdayInfo({ emp }: { emp: Employee }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <span className="tabular-nums">{emp.saturdayStart}–{emp.saturdayEnd}</span>
-      {emp.saturdayMode === 'first_two' && <Badge variant="muted">1º e 2º</Badge>}
+      {emp.saturdayMode === 'first_two' && <span className="text-muted-foreground">(1º e 2º)</span>}
     </span>
   )
 }
@@ -234,20 +233,20 @@ export function EmployeesPage() {
           {filtered.map((emp) => (
             <li key={emp.id} className={cn('flex items-start gap-3 px-4 py-4', deactivating === emp.id && 'opacity-50')}>
               <UserAvatar name={emp.name} />
-              <div className="min-w-0 flex-1 space-y-1.5">
+              <div className="min-w-0 flex-1 space-y-1">
                 <div>
                   <p className="truncate font-medium text-foreground">{emp.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{emp.role}</p>
                 </div>
-                <div className="flex flex-wrap gap-1.5 text-xs">
-                  <Badge variant="secondary" className="tabular-nums">Seg–Sex {emp.weekdayStart}–{emp.weekdayEnd}</Badge>
+                <p className="text-xs tabular-nums text-muted-foreground">
+                  Seg–Sex {emp.weekdayStart}–{emp.weekdayEnd}
                   {emp.saturdayMode !== 'none' && (
-                    <Badge variant="outline" className="tabular-nums">
-                      Sáb {emp.saturdayStart}–{emp.saturdayEnd}
+                    <>
+                      {' · '}Sáb {emp.saturdayStart}–{emp.saturdayEnd}
                       {emp.saturdayMode === 'first_two' && ' (1º e 2º)'}
-                    </Badge>
+                    </>
                   )}
-                </div>
+                </p>
               </div>
               {renderActions(emp)}
             </li>
@@ -272,17 +271,17 @@ export function EmployeesPage() {
         }
       />
 
-      <div className="overflow-hidden rounded-xl border bg-card shadow-xs">
+      <div className="overflow-hidden rounded-lg border bg-card">
         {employees.length > 0 && !isError && (
           <div className="flex flex-col gap-3 border-b px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-5">
             <p className="text-sm font-medium text-foreground">Equipe</p>
             <div className="relative w-full sm:w-64">
-              <Search aria-hidden className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 type="search"
                 aria-label="Buscar funcionário"
-                placeholder="Buscar..."
-                className="h-8 pl-9"
+                placeholder="Buscar por nome ou função"
+                className="pl-8"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
