@@ -1,4 +1,4 @@
-import type { HourBankAdjustment } from '@ponto/shared'
+import type { HourBankAdjustment, BankTreatment, TimeEntry, DayType } from '@ponto/shared'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? '/api'
 
@@ -15,6 +15,30 @@ export function clearToken() {
   localStorage.removeItem('ponto_user')
 }
 
+/** Field-level messages from a 400 VALIDATION_ERROR ({ details: { fieldErrors } }). */
+export type FieldErrors = Record<string, string[] | undefined>
+
+export class ApiError extends Error {
+  status: number
+  code: string
+  fieldErrors: FieldErrors
+
+  constructor(message: string, status: number, code: string, fieldErrors: FieldErrors = {}) {
+    super(message)
+    this.name = 'ApiError'
+    this.status = status
+    this.code = code
+    this.fieldErrors = fieldErrors
+  }
+}
+
+let onUnauthorized: (() => void) | null = null
+
+/** Registered once at startup (main.tsx): runs when an authenticated call gets 401. */
+export function setUnauthorizedHandler(handler: () => void) {
+  onUnauthorized = handler
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getToken()
 
@@ -28,8 +52,20 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   })
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Erro desconhecido', code: 'UNKNOWN' }))
-    throw Object.assign(new Error((err as { error: string }).error), { status: res.status, code: (err as { code: string }).code })
+    const body = (await res.json().catch(() => null)) as {
+      error?: string
+      code?: string
+      details?: { fieldErrors?: FieldErrors; formErrors?: string[] }
+    } | null
+
+    if (res.status === 401 && path !== '/auth/login') onUnauthorized?.()
+
+    const fieldErrors = body?.details?.fieldErrors ?? {}
+    // Prefer the specific field message over the generic "Dados inválidos"
+    const firstFieldMessage =
+      Object.values(fieldErrors).find((m) => m && m.length > 0)?.[0] ?? body?.details?.formErrors?.[0]
+    const message = firstFieldMessage ?? body?.error ?? 'Erro desconhecido'
+    throw new ApiError(message, res.status, body?.code ?? 'UNKNOWN', fieldErrors)
   }
 
   return res.json() as Promise<T>
@@ -56,6 +92,11 @@ export const authApi = {
 export const companyApi = {
   get: () => request<{ data: unknown }>('/company'),
   update: (data: unknown) => request('/company', { method: 'PUT', body: JSON.stringify(data) }),
+  updateSettings: (absenceTreatmentDefault: BankTreatment) =>
+    request<{ data: unknown }>('/company/settings', {
+      method: 'PATCH',
+      body: JSON.stringify({ absenceTreatmentDefault }),
+    }),
 }
 
 // ─── Employees ────────────────────────────────────────────────────────────────
@@ -78,6 +119,28 @@ export const timeEntriesApi = {
   upsert: (data: unknown) =>
     request('/timeentries', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id: string) => request(`/timeentries/${id}`, { method: 'DELETE' }),
+  /** Re-applies the employee's current schedule/tolerance to every entry of the month. */
+  recalculate: (employeeId: string, year: number, month: number) =>
+    request<{ data: { updated: number } }>('/timeentries/recalculate', {
+      method: 'POST',
+      body: JSON.stringify({ employeeId, year, month }),
+    }),
+  setBankTreatment: (id: string, bankTreatment: BankTreatment) =>
+    request<{ data: TimeEntry }>(`/timeentries/${id}/bank-treatment`, {
+      method: 'PATCH',
+      body: JSON.stringify({ bankTreatment }),
+    }),
+  bulkSetBankTreatment: (params: {
+    employeeId: string
+    year: number
+    month: number
+    bankTreatment: BankTreatment
+    dayTypes?: Exclude<DayType, 'banco_horas'>[]
+  }) =>
+    request<{ data: { updated: number } }>('/timeentries/bank-treatment', {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    }),
 }
 
 // ─── Reports ─────────────────────────────────────────────────────────────────
